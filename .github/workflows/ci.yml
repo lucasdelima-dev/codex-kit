@@ -90,6 +90,9 @@ jobs:
           test -s CODE_OF_CONDUCT.md
           test ! -d skills/ui-ux-pro-max
           grep -q 'UI_UX_PRO_MAX_VERSION="2.15.0"' manifests/tools.env
+          grep -q 'CODEX_VERSION="0.160.0"' manifests/tools.env
+          test "$(grep -R 'model = "gpt-6.1-sol"' templates/profiles/*/config.toml | wc -l)" -eq 8
+          test "$(grep -R 'model_reasoning_effort = "medium"' templates/profiles/*/config.toml | wc -l)" -eq 8
 
       - name: Git whitespace check
         shell: bash
