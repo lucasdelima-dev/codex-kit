@@ -483,7 +483,29 @@ catch {
 }
 finally {
     if (Test-Path $Probe) {
-        Remove-Item $Probe -Recurse -Force
+        $Removed = $false
+
+        for ($Attempt = 1; $Attempt -le 5; $Attempt++) {
+            try {
+                Remove-Item `
+                    $Probe `
+                    -Recurse `
+                    -Force `
+                    -ErrorAction Stop
+
+                $Removed = $true
+                break
+            }
+            catch {
+                if ($Attempt -lt 5) {
+                    Start-Sleep -Milliseconds 500
+                }
+            }
+        }
+
+        if (-not $Removed -and (Test-Path $Probe)) {
+            Warn "probe temporário ainda está em uso; limpeza adiada pelo SO"
+        }
     }
 }
 
