@@ -1,0 +1,76 @@
+name: Bootstrap Smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Bootstrap (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bootstrap machine (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: ./bin/bootstrap-machine
+
+      - name: Bootstrap profiles (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.codex"
+          printf "{}\n" > "$HOME/.codex/auth.json"
+          ./bin/bootstrap-profile all
+
+      - name: Neutral project smoke (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          PROJECT="$(mktemp -d)"
+          git -C "$PROJECT" init
+          ./bin/bootstrap-project "$PROJECT" --standard
+          cd "$PROJECT"
+          "$GITHUB_WORKSPACE/bin/codex-doctor"
+
+      - name: Bootstrap machine (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & ".\bin\bootstrap-machine.ps1"
+
+      - name: Bootstrap profiles (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force "$HOME\.codex" | Out-Null
+          "{}" | Set-Content "$HOME\.codex\auth.json"
+          & ".\bin\bootstrap-profile.ps1" all
+
+      - name: Neutral project smoke (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $project = Join-Path $env:RUNNER_TEMP "codex-kit-smoke"
+          New-Item -ItemType Directory -Force $project | Out-Null
+          git -C $project init
+          & ".\bin\bootstrap-project.ps1" $project --standard
+          Push-Location $project
+          try {
+            & "$env:GITHUB_WORKSPACE\bin\codex-doctor.ps1"
+          } finally {
+            Pop-Location
+          }

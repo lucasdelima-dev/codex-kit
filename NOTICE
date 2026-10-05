@@ -1,0 +1,20 @@
+Codex Kit
+Copyright (c) 2026 Codex Kit contributors
+
+Codex Kit is an independent open-source project that provides a portable,
+reproducible and profile-oriented development environment around OpenAI
+Codex and third-party developer tools.
+
+Codex Kit is not affiliated with, sponsored by, or endorsed by OpenAI or by
+the maintainers or vendors of the third-party projects it integrates with.
+
+Product names, project names, trademarks and logos belong to their respective
+owners.
+
+Some files distributed in this repository originate from or are derived from
+third-party open-source projects. Their licenses and attribution information
+are documented in THIRD_PARTY_NOTICES.
+
+Software installed, cloned or downloaded by the bootstrap remains governed by
+its respective upstream license and is not relicensed by the Codex Kit MIT
+License.

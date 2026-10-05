@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+NODE24_ROOT="$HOME/.local/opt/node24"
+MCPORTER_ROOT="$HOME/.local/share/mcporter"
+
+export PATH="$NODE24_ROOT/bin:$MCPORTER_ROOT/node_modules/.bin:$PATH"
+
+if [[ -n "${CODEX_PROJECT_ROOT:-}" ]]; then
+  cd "$CODEX_PROJECT_ROOT"
+fi
+
+exec "$MCPORTER_ROOT/node_modules/.bin/mcporter" "$@"

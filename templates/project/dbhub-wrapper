@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -e
+
+ROOT="${CODEX_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+CONFIG="$ROOT/.codex-local/dbhub.toml"
+DBHUB_BIN="${DBHUB_BIN:-$HOME/.local/bin/dbhub}"
+
+if [ ! -x "$DBHUB_BIN" ]; then
+  echo "DBHub não encontrado em $DBHUB_BIN" >&2
+  exit 2
+fi
+
+if [ ! -f "$CONFIG" ]; then
+  echo "Config DBHub ausente: $CONFIG" >&2
+  exit 2
+fi
+
+if grep -Fq '${DBHUB_DSN}' "$CONFIG" && [ -z "${DBHUB_DSN:-}" ]; then
+  echo "DBHUB_DSN não está definido para este projeto." >&2
+  exit 2
+fi
+
+exec "$DBHUB_BIN" --config "$CONFIG"

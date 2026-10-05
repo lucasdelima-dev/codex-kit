@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Bash syntax
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -e
+          for file in \
+            bin/bootstrap-machine \
+            bin/bootstrap-profile \
+            bin/bootstrap-project \
+            bin/codex-doctor \
+            platform/linux/machine.sh \
+            platform/macos/machine.sh \
+            wrappers/codex-code \
+            wrappers/chrome-devtools \
+            wrappers/mcporter \
+            wrappers/od
+          do
+            bash -n "$file"
+          done
+
+      - name: Validate PowerShell syntax
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $failed = $false
+          Get-ChildItem -Recurse -Filter *.ps1 | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $_.FullName,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $failed = $true
+              Write-Host "Syntax errors in $($_.FullName)"
+              $errors | ForEach-Object { Write-Host $_ }
+            }
+          }
+          if ($failed) { throw "PowerShell syntax validation failed" }
+
+      - name: Validate Python, JSON and TOML
+        shell: bash
+        run: |
+          python -m py_compile lib/merge-project-mcporter.py
+          python -c 'import json; json.load(open("templates/mcporter/global.json")); json.load(open("templates/mcporter/project-dbhub.json"))'
+          python -c 'import glob,tomllib; [tomllib.load(open(p,"rb")) for p in glob.glob("templates/profiles/*/config.toml")]'
+
+      - name: Validate repository structure
+        shell: bash
+        run: |
+          test -s LICENSE
+          test -s NOTICE
+          test -s THIRD_PARTY_NOTICES
+          test -s README.md
+          test -s SECURITY.md
+          test -s CONTRIBUTING.md
+          test -s CODE_OF_CONDUCT.md
+          test ! -d skills/ui-ux-pro-max
+          grep -q 'UI_UX_PRO_MAX_VERSION="2.15.0"' manifests/tools.env
+
+      - name: Git whitespace check
+        shell: bash
+        run: git show --check --format= HEAD

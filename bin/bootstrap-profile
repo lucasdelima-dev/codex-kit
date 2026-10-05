@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+set -e
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+KIT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+MANIFEST="$KIT/manifests/profiles.tsv"
+TOOLS="$KIT/manifests/tools.env"
+
+. "$TOOLS"
+
+PROFILES_ROOT="$HOME/.codex-profiles"
+SHARED_SKILLS="$HOME/.codex-shared/skills"
+
+PROFILES="lean backend frontend research security full experimental intraer"
+
+usage() {
+  echo "Uso:"
+  echo "  bootstrap-profile all"
+  echo "  bootstrap-profile <perfil>"
+  echo
+  echo "Perfis:"
+  echo "  $PROFILES"
+}
+
+is_valid_profile() {
+  case "$1" in
+    lean|backend|frontend|research|security|full|experimental|intraer)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+profile_skills() {
+  awk -F'|' -v profile="$1" \
+    '$1 == profile { print $2; exit }' \
+    "$MANIFEST"
+}
+
+install_profile() {
+  PROFILE="$1"
+
+  SRC="$KIT/templates/profiles/$PROFILE"
+  DST="$PROFILES_ROOT/$PROFILE"
+
+  echo
+  echo "==> Perfil: $PROFILE"
+
+  test -f "$SRC/config.toml" || {
+    echo "Template config.toml ausente para $PROFILE" >&2
+    exit 2
+  }
+
+  test -f "$SRC/AGENTS.md" || {
+    echo "Template AGENTS.md ausente para $PROFILE" >&2
+    exit 2
+  }
+
+  test -f "$SRC/rules/default.rules" || {
+    echo "Template rules ausente para $PROFILE" >&2
+    exit 2
+  }
+
+  mkdir -p "$DST/rules"
+
+  install -m 644 \
+    "$SRC/config.toml" \
+    "$DST/config.toml"
+
+  install -m 644 \
+    "$SRC/AGENTS.md" \
+    "$DST/AGENTS.md"
+
+  install -m 644 \
+    "$SRC/rules/default.rules" \
+    "$DST/rules/default.rules"
+
+  echo "    config/AGENTS/rules: OK"
+
+  # Auth compartilhada, sem copiar credenciais.
+  if [ -e "$DST/auth.json" ] && [ ! -L "$DST/auth.json" ]; then
+    mv \
+      "$DST/auth.json" \
+      "$DST/auth.json.pre-bootstrap-$(date +%Y%m%d-%H%M%S)"
+  fi
+
+  ln -sfn \
+    "../../.codex/auth.json" \
+    "$DST/auth.json"
+
+  echo "    auth symlink: OK"
+
+  # O diretório skills é inteiramente gerenciado pelo bootstrap.
+  rm -rf "$DST/skills"
+  mkdir -p "$DST/skills"
+
+  SKILLS="$(profile_skills "$PROFILE")"
+
+  IFS=',' read -ra ITEMS <<< "$SKILLS"
+
+  for skill in "${ITEMS[@]}"; do
+    [ -n "$skill" ] || continue
+
+    if [ ! -d "$SHARED_SKILLS/$skill" ]; then
+      echo "Skill compartilhada ausente: $skill" >&2
+      exit 3
+    fi
+
+    ln -s \
+      "../../../.codex-shared/skills/$skill" \
+      "$DST/skills/$skill"
+  done
+
+  COUNT=0
+
+  for link in "$DST"/skills/*; do
+    [ -L "$link" ] || continue
+    COUNT=$((COUNT + 1))
+  done
+
+  echo "    skills: $COUNT"
+
+  # Superpowers é transversal aos 8 perfis.
+  if find "$DST/plugins" \
+      -path "*superpowers/$SUPERPOWERS_EXPECTED_VERSION*" \
+      -print -quit 2>/dev/null | grep -q .; then
+
+    echo "    superpowers $SUPERPOWERS_EXPECTED_VERSION: OK"
+
+  elif [ -e "$HOME/.codex/auth.json" ]; then
+
+    echo "    instalando Superpowers..."
+
+    CODEX_HOME="$DST" \
+      codex plugin add \
+      superpowers@openai-curated-remote \
+      --json >/dev/null
+
+    echo "    superpowers: instalado"
+
+  else
+    echo "    AVISO: ~/.codex/auth.json ausente."
+    echo "    Faça login no Codex e execute novamente para instalar Superpowers."
+  fi
+}
+
+TARGET="${1:-all}"
+
+case "$TARGET" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  all)
+    for profile in $PROFILES; do
+      install_profile "$profile"
+    done
+    ;;
+  *)
+    if ! is_valid_profile "$TARGET"; then
+      echo "Perfil inválido: $TARGET" >&2
+      usage
+      exit 1
+    fi
+
+    install_profile "$TARGET"
+    ;;
+esac
+
+echo
+echo "========================================"
+echo " bootstrap-profile concluído"
+echo "========================================"

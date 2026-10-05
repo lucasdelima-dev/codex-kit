@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -u
+
+OD_ROOT="$HOME/.local/share/open-design-0.24.1"
+NODE="$HOME/.local/opt/node24/bin/node"
+CLI="$OD_ROOT/apps/daemon/dist/cli.js"
+
+if [[ ! -f "$CLI" ]]; then
+  echo "OpenDesign: CLI não encontrada em $CLI" >&2
+  exit 2
+fi
+
+unset POSTHOG_KEY POSTHOG_HOST OPEN_DESIGN_TELEMETRY_RELAY_URL LANGFUSE_BASE_URL
+export NEXT_TELEMETRY_DISABLED=1
+export PATH="$HOME/.local/opt/node24/bin:$PATH"
+
+exec "$NODE" "$CLI" "$@"

@@ -1,0 +1,368 @@
+#!/usr/bin/env bash
+
+KIT="${CODEX_KIT:-$HOME/.codex-kit}"
+TOOLS="$KIT/manifests/tools.env"
+PROFILES_MANIFEST="$KIT/manifests/profiles.tsv"
+
+PASS=0
+WARN=0
+FAIL=0
+
+ok() {
+  printf '  ✅ %s\n' "$*"
+  PASS=$((PASS + 1))
+}
+
+warn() {
+  printf '  ⚠️  %s\n' "$*"
+  WARN=$((WARN + 1))
+}
+
+fail() {
+  printf '  ❌ %s\n' "$*"
+  FAIL=$((FAIL + 1))
+}
+
+section() {
+  printf '\n=== %s ===\n' "$*"
+}
+
+if [ ! -f "$TOOLS" ]; then
+  echo "Manifesto ausente: $TOOLS" >&2
+  exit 2
+fi
+
+. "$TOOLS"
+
+section "Sistema"
+
+printf '  SO:   %s\n' "$(uname -s)"
+printf '  ARCH: %s\n' "$(uname -m)"
+
+OS="$(uname -s)"
+RAW_ARCH="$(uname -m)"
+
+case "$OS" in
+  Linux)
+    if grep -qi microsoft /proc/version 2>/dev/null ||
+       grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null; then
+      ok "WSL2/Linux detectado"
+    else
+      ok "Linux detectado"
+    fi
+    ;;
+  Darwin)
+    ok "macOS detectado"
+    ;;
+  *)
+    warn "SO ainda não validado: $OS"
+    ;;
+esac
+
+case "$RAW_ARCH" in
+  x86_64|amd64)
+    ok "arquitetura x86_64"
+    ;;
+  arm64|aarch64)
+    ok "arquitetura ARM64"
+    ;;
+  *)
+    warn "arquitetura ainda não suportada: $RAW_ARCH"
+    ;;
+esac
+
+
+section "Node 24"
+
+NODE24="$HOME/.local/opt/node24"
+EXPECTED_NODE="v$NODE24_VERSION"
+
+if [ -x "$NODE24/bin/node" ]; then
+  CURRENT_NODE="$("$NODE24/bin/node" --version 2>/dev/null)"
+
+  if [ "$CURRENT_NODE" = "$EXPECTED_NODE" ]; then
+    ok "Node $CURRENT_NODE"
+  else
+    fail "Node esperado $EXPECTED_NODE; encontrado $CURRENT_NODE"
+  fi
+else
+  fail "Node24 não encontrado em $NODE24"
+fi
+
+if [ -L "$NODE24" ]; then
+  ok "alias node24 é symlink"
+else
+  fail "alias node24 não é symlink"
+fi
+
+
+section "Ferramentas"
+
+for cmd in \
+  codex \
+  rtk \
+  openspec \
+  codegraph \
+  serena \
+  mcporter \
+  ctx7 \
+  bd \
+  repomix \
+  semgrep \
+  agent-browser \
+  playwright-cli \
+  chrome-devtools \
+  od
+do
+  if command -v "$cmd" >/dev/null 2>&1; then
+    ok "$cmd"
+  else
+    fail "$cmd ausente do PATH"
+  fi
+done
+
+
+section "Wrappers"
+
+for wrapper in codex-code chrome-devtools mcporter od; do
+  ACTIVE="$HOME/.local/bin/$wrapper"
+  TEMPLATE="$KIT/wrappers/$wrapper"
+
+  if [ ! -f "$ACTIVE" ]; then
+    fail "$wrapper ativo ausente"
+    continue
+  fi
+
+  if [ ! -f "$TEMPLATE" ]; then
+    fail "$wrapper template ausente"
+    continue
+  fi
+
+  if bash -n "$ACTIVE" 2>/dev/null; then
+    ok "$wrapper sintaxe"
+  else
+    fail "$wrapper com erro de sintaxe"
+  fi
+
+  if cmp -s "$ACTIVE" "$TEMPLATE"; then
+    ok "$wrapper ativo = template"
+  else
+    warn "$wrapper ativo diverge do template"
+  fi
+done
+
+
+section "Configuração global"
+
+if [ -f "$HOME/.mcporter/mcporter.json" ]; then
+  if python3 -m json.tool \
+      "$HOME/.mcporter/mcporter.json" \
+      >/dev/null 2>&1; then
+    ok "mcporter.json válido"
+  else
+    fail "mcporter.json inválido"
+  fi
+else
+  fail "~/.mcporter/mcporter.json ausente"
+fi
+
+if grep -rInE \
+  '/home/[^/]+/|/Users/[^/]+/|[A-Za-z]:\\Users\\[^\\]+\\' \
+  "$HOME/.mcporter/mcporter.json" \
+  "$HOME/.codex-profiles"/*/config.toml \
+  "$HOME/.codex-profiles"/*/AGENTS.md \
+  "$HOME/.codex-profiles"/*/rules \
+  "$KIT/templates/profiles" \
+  "$KIT/wrappers" \
+  >/dev/null 2>&1
+then
+  fail "caminho pessoal hardcoded encontrado na camada global"
+else
+  ok "camada global sem caminho pessoal hardcoded"
+fi
+
+
+section "Perfis"
+
+while IFS='|' read -r PROFILE SKILLS; do
+  [ -n "$PROFILE" ] || continue
+
+  ROOT="$HOME/.codex-profiles/$PROFILE"
+
+  if [ ! -d "$ROOT" ]; then
+    fail "$PROFILE ausente"
+    continue
+  fi
+
+  PROFILE_OK=1
+
+  for f in config.toml AGENTS.md rules/default.rules; do
+    if [ ! -f "$ROOT/$f" ]; then
+      fail "$PROFILE: $f ausente"
+      PROFILE_OK=0
+    fi
+  done
+
+  AUTH="$(readlink "$ROOT/auth.json" 2>/dev/null || true)"
+
+  if [ "$AUTH" != "../../.codex/auth.json" ]; then
+    fail "$PROFILE: auth symlink incorreto"
+    PROFILE_OK=0
+  fi
+
+  EXPECTED_COUNT="$(
+    printf '%s\n' "$SKILLS" |
+      awk -F',' '{print NF}'
+  )"
+
+  CURRENT_COUNT=0
+
+  for link in "$ROOT"/skills/*; do
+    [ -L "$link" ] || continue
+    CURRENT_COUNT=$((CURRENT_COUNT + 1))
+  done
+
+  if [ "$CURRENT_COUNT" != "$EXPECTED_COUNT" ]; then
+    fail "$PROFILE: skills $CURRENT_COUNT/$EXPECTED_COUNT"
+    PROFILE_OK=0
+  fi
+
+  IFS=',' read -ra ITEMS <<< "$SKILLS"
+
+  for skill in "${ITEMS[@]}"; do
+    LINK="$ROOT/skills/$skill"
+    EXPECTED="../../../.codex-shared/skills/$skill"
+
+    if [ "$(readlink "$LINK" 2>/dev/null || true)" != "$EXPECTED" ]; then
+      fail "$PROFILE: symlink inválido para $skill"
+      PROFILE_OK=0
+    fi
+  done
+
+  if ! find "$ROOT/plugins" \
+      -path "*superpowers/$SUPERPOWERS_EXPECTED_VERSION*" \
+      -print -quit 2>/dev/null |
+      grep -q .
+  then
+    fail "$PROFILE: Superpowers $SUPERPOWERS_EXPECTED_VERSION ausente"
+    PROFILE_OK=0
+  fi
+
+  if [ "$PROFILE_OK" -eq 1 ]; then
+    ok "$PROFILE"
+  fi
+done < "$PROFILES_MANIFEST"
+
+
+section "Skills compartilhadas"
+
+if [ -d "$HOME/.codex-shared/skills" ]; then
+  ok "~/.codex-shared/skills"
+else
+  fail "diretório de Skills compartilhadas ausente"
+fi
+
+
+section "Isolamento multi-projeto"
+
+PROBE="$(mktemp -d /tmp/codex-doctor-XXXXXX)"
+
+git -C "$PROBE" init -q
+printf '# doctor\n' > "$PROBE/README.md"
+
+"$KIT/bin/bootstrap-project" "$PROBE" >/dev/null 2>&1
+
+OLD_ROOT="${CODEX_PROJECT_ROOT:-}"
+OLD_MCP="${MCPORTER_CONFIG:-}"
+
+export CODEX_PROJECT_ROOT="$PROBE"
+unset MCPORTER_CONFIG
+
+MCP_OUT="$(mcporter list 2>&1)"
+
+if printf '%s\n' "$MCP_OUT" |
+     grep -q '2 healthy' &&
+   ! printf '%s\n' "$MCP_OUT" |
+     grep -qE '^- dbhub '
+then
+  ok "projeto neutro = Serena + CodeGraph"
+else
+  fail "isolamento MCP do projeto neutro"
+  printf '%s\n' "$MCP_OUT" | sed 's/^/      /'
+fi
+
+rm -rf "$PROBE"
+
+if [ -n "$OLD_ROOT" ]; then
+  export CODEX_PROJECT_ROOT="$OLD_ROOT"
+else
+  unset CODEX_PROJECT_ROOT
+fi
+
+if [ -n "$OLD_MCP" ]; then
+  export MCPORTER_CONFIG="$OLD_MCP"
+else
+  unset MCPORTER_CONFIG
+fi
+
+
+section "Projeto atual"
+
+CURRENT_ROOT=""
+
+if git rev-parse --show-toplevel >/dev/null 2>&1; then
+  CURRENT_ROOT="$(git rev-parse --show-toplevel)"
+fi
+
+if [ -n "$CURRENT_ROOT" ]; then
+  ok "Git root: $CURRENT_ROOT"
+
+  if [ -d "$CURRENT_ROOT/.codex-local" ]; then
+    ok ".codex-local presente"
+  else
+    warn ".codex-local ausente"
+  fi
+
+  if [ -f "$CURRENT_ROOT/config/mcporter.json" ]; then
+    if python3 -m json.tool \
+        "$CURRENT_ROOT/config/mcporter.json" \
+        >/dev/null 2>&1; then
+      ok "config/mcporter.json válido"
+    else
+      fail "config/mcporter.json inválido"
+    fi
+  else
+    warn "projeto sem config/mcporter.json local"
+  fi
+
+  if [ -d "$CURRENT_ROOT/.beads" ]; then
+    ok "Beads inicializado"
+  else
+    warn "Beads não inicializado"
+  fi
+
+  if [ -d "$CURRENT_ROOT/openspec" ]; then
+    ok "OpenSpec presente"
+  else
+    warn "OpenSpec não presente"
+  fi
+else
+  warn "diretório atual não pertence a um repositório Git"
+fi
+
+
+section "Resumo"
+
+printf '  PASS: %s\n' "$PASS"
+printf '  WARN: %s\n' "$WARN"
+printf '  FAIL: %s\n' "$FAIL"
+
+if [ "$FAIL" -eq 0 ]; then
+  echo
+  echo "✅ Ambiente Codex saudável"
+  exit 0
+else
+  echo
+  echo "❌ Ambiente Codex possui falhas"
+  exit 1
+fi

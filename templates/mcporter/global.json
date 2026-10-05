@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/openclaw/mcporter/main/mcporter.schema.json",
+  "imports": [],
+  "mcpServers": {
+    "serena": {
+      "description": "Serena semântico do projeto atual",
+      "command": "serena",
+      "args": [
+        "start-mcp-server",
+        "--project-from-cwd",
+        "--context=codex",
+        "--open-web-dashboard",
+        "false"
+      ],
+      "cwd": "${CODEX_PROJECT_ROOT}"
+    },
+    "codegraph": {
+      "description": "CodeGraph local do projeto atual",
+      "command": "codegraph",
+      "args": [
+        "mcp",
+        "serve",
+        "--root",
+        ".",
+        "--stdio"
+      ],
+      "cwd": "${CODEX_PROJECT_ROOT}"
+    }
+  }
+}

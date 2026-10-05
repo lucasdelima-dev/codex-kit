@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/openclaw/mcporter/main/mcporter.schema.json",
+  "imports": [],
+  "mcpServers": {
+    "dbhub": {
+      "description": "DBHub local readonly deste projeto",
+      "command": "${CODEX_PROJECT_ROOT}/.codex-local/bin/dbhub",
+      "args": [],
+      "cwd": "${CODEX_PROJECT_ROOT}"
+    }
+  }
+}

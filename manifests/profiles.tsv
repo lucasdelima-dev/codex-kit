@@ -1,0 +1,8 @@
+lean|codegraph-cli,context7-cli,serena-cli
+backend|beads-cli,codegraph-cli,context7-cli,repomix-cli,semgrep-cli,serena-cli
+frontend|agent-browser,beads-cli,chrome-devtools-cli,codegraph-cli,context7-cli,open-design-cli,playwright-cli,repomix-cli,serena-cli,ui-ux-pro-max,web-design-guidelines
+research|agent-browser,codegraph-cli,context7-cli,repomix-cli,serena-cli
+security|beads-cli,codegraph-cli,context7-cli,repomix-cli,semgrep-cli,serena-cli
+full|agent-browser,beads-cli,chrome-devtools-cli,codegraph-cli,context7-cli,open-design-cli,playwright-cli,repomix-cli,semgrep-cli,serena-cli,ui-ux-pro-max,web-design-guidelines
+experimental|agent-browser,beads-cli,chrome-devtools-cli,codegraph-cli,context7-cli,open-design-cli,playwright-cli,repomix-cli,semgrep-cli,serena-cli,ui-ux-pro-max,web-design-guidelines
+intraer|agent-browser,beads-cli,chrome-devtools-cli,codegraph-cli,context7-cli,dbhub-cli,playwright-cli,repomix-cli,semgrep-cli,serena-cli,ui-ux-pro-max,web-design-guidelines

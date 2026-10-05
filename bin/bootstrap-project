@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+set -e
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+KIT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+TARGET="."
+WITH_BEADS=0
+WITH_OPENSPEC=0
+WITH_DBHUB=0
+
+usage() {
+  echo "Uso:"
+  echo "  bootstrap-project [diretório] [opções]"
+  echo
+  echo "Opções:"
+  echo "  --beads       inicializa Beads local/stealth"
+  echo "  --openspec    inicializa OpenSpec"
+  echo "  --standard    equivale a --beads --openspec"
+  echo "  --dbhub       cria infraestrutura DBHub local"
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --beads)
+      WITH_BEADS=1
+      ;;
+    --openspec)
+      WITH_OPENSPEC=1
+      ;;
+    --standard)
+      WITH_BEADS=1
+      WITH_OPENSPEC=1
+      ;;
+    --dbhub)
+      WITH_DBHUB=1
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -*)
+      echo "Opção desconhecida: $1" >&2
+      exit 1
+      ;;
+    *)
+      TARGET="$1"
+      ;;
+  esac
+  shift
+done
+
+TARGET="$(realpath "$TARGET")"
+
+if ! git -C "$TARGET" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "O diretório precisa pertencer a um repositório Git: $TARGET" >&2
+  exit 2
+fi
+
+ROOT="$(git -C "$TARGET" rev-parse --show-toplevel)"
+ROOT="$(realpath "$ROOT")"
+
+echo
+echo "==> Projeto"
+echo "    root: $ROOT"
+
+export CODEX_PROJECT_ROOT="$ROOT"
+
+echo
+echo "==> Isolamento local"
+
+EXCLUDE="$(git -C "$ROOT" rev-parse --git-path info/exclude)"
+
+case "$EXCLUDE" in
+  /*) ;;
+  *) EXCLUDE="$ROOT/$EXCLUDE" ;;
+esac
+
+mkdir -p "$(dirname "$EXCLUDE")"
+touch "$EXCLUDE"
+
+while IFS= read -r pattern; do
+  [ -n "$pattern" ] || continue
+
+  grep -qxF "$pattern" "$EXCLUDE" 2>/dev/null ||
+    printf '%s\n' "$pattern" >> "$EXCLUDE"
+done < "$KIT/templates/project/git-info-exclude.txt"
+
+mkdir -p "$ROOT/.codex-local/bin"
+
+echo "    .git/info/exclude: OK"
+
+echo
+echo "==> Serena / CodeGraph"
+echo "    lazy por projeto via CODEX_PROJECT_ROOT: OK"
+
+if [ "$WITH_BEADS" -eq 1 ]; then
+  echo
+  echo "==> Beads"
+
+  if [ -d "$ROOT/.beads" ]; then
+    echo "    já inicializado: OK"
+  else
+    git -C "$ROOT" config beads.role maintainer
+
+    (
+      cd "$ROOT"
+      export BEADS_DIR="$ROOT/.beads"
+      bd init --quiet --stealth </dev/null
+    )
+
+    echo "    inicializado local/stealth: OK"
+  fi
+fi
+
+if [ "$WITH_OPENSPEC" -eq 1 ]; then
+  echo
+  echo "==> OpenSpec"
+
+  if [ -f "$ROOT/openspec/config.yaml" ]; then
+    echo "    já inicializado: OK"
+  else
+    openspec init "$ROOT" \
+      --tools none \
+      --no-animation
+
+    echo "    inicializado: OK"
+  fi
+fi
+
+if [ "$WITH_DBHUB" -eq 1 ]; then
+  echo
+  echo "==> DBHub"
+
+  DBHUB_CONFIG="$ROOT/.codex-local/dbhub.toml"
+  DBHUB_WRAPPER="$ROOT/.codex-local/bin/dbhub"
+  MCPORTER_PROJECT="$ROOT/config/mcporter.json"
+
+  if [ ! -f "$DBHUB_CONFIG" ]; then
+    install -m 600 \
+      "$KIT/templates/project/dbhub.toml" \
+      "$DBHUB_CONFIG"
+    echo "    dbhub.toml criado"
+  else
+    echo "    dbhub.toml existente: preservado"
+  fi
+
+  if [ ! -f "$DBHUB_WRAPPER" ]; then
+    install -m 700 \
+      "$KIT/templates/project/dbhub-wrapper" \
+      "$DBHUB_WRAPPER"
+    echo "    wrapper criado"
+  else
+    echo "    wrapper existente: preservado"
+  fi
+
+  python3 \
+    "$KIT/lib/merge-project-mcporter.py" \
+    "$MCPORTER_PROJECT" \
+    "$KIT/templates/mcporter/project-dbhub.json"
+
+  echo "    mcporter DBHub: OK"
+
+  if [ -z "${DBHUB_DSN:-}" ]; then
+    echo "    AVISO: defina DBHUB_DSN antes de usar DBHub."
+  fi
+fi
+
+echo
+echo "==> Estado Git"
+
+git -C "$ROOT" status --short
+
+echo
+echo "========================================"
+echo " bootstrap-project concluído"
+echo "========================================"

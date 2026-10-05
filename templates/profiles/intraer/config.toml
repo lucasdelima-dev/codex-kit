@@ -1,0 +1,10 @@
+model = "gpt-5.6-terra"
+model_reasoning_effort = "medium"
+service_tier = "default"
+
+
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+writable_roots = ["~/.serena", "~/.semgrep"]
+network_access = false

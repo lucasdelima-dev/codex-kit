@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+
+set -e
+
+case "${1:-}" in
+  lean|backend|frontend|research|security|full|experimental|intraer)
+    PROFILE="$1"
+    shift
+    TARGET="${1:-.}"
+    ;;
+  -h|--help)
+    echo "Uso:"
+    echo "  codex-code [perfil] [diretorio]"
+    echo "  codex-code [diretorio]        # usa full"
+    echo
+    echo "Perfis: lean backend frontend research security full experimental intraer"
+    exit 0
+    ;;
+  *)
+    PROFILE="full"
+    TARGET="${1:-.}"
+    ;;
+esac
+
+case "$PROFILE" in
+  lean)
+    EMOJI="🪶"
+    LABEL="LEAN"
+    ;;
+  backend)
+    EMOJI="⚙️"
+    LABEL="BACKEND"
+    ;;
+  frontend)
+    EMOJI="🎨"
+    LABEL="FRONTEND"
+    ;;
+  research)
+    EMOJI="🔬"
+    LABEL="RESEARCH"
+    ;;
+  security)
+    EMOJI="🔐"
+    LABEL="SECURITY"
+    ;;
+  full)
+    EMOJI="🚀"
+    LABEL="FULL"
+    ;;
+  experimental)
+    EMOJI="🧪"
+    LABEL="EXPERIMENTAL"
+    ;;
+  intraer)
+    EMOJI="🛡️"
+    LABEL="INTRAER"
+    ;;
+  *)
+    echo "Perfil desconhecido: $PROFILE"
+    exit 1
+    ;;
+esac
+
+CODEX_PROFILE_HOME="$HOME/.codex-profiles/$PROFILE"
+
+if [ ! -f "$CODEX_PROFILE_HOME/config.toml" ]; then
+  echo "$EMOJI Perfil '$PROFILE' ainda não foi configurado."
+  echo "Esperado:"
+  echo "  $CODEX_PROFILE_HOME/config.toml"
+  exit 1
+fi
+
+TARGET="$(realpath "$TARGET")"
+
+if [ ! -d "$TARGET" ]; then
+  echo "Diretório inválido: $TARGET"
+  exit 1
+fi
+
+PROJECT_NAME="$(basename "$TARGET")"
+
+VSCODE_DATA="$HOME/.vscode-codex/$PROFILE"
+WORKSPACE_DIR="$HOME/.codex-workspaces"
+WORKSPACE_FILE="$WORKSPACE_DIR/${PROFILE}-${PROJECT_NAME}.code-workspace"
+
+mkdir -p "$VSCODE_DATA/User"
+mkdir -p "$WORKSPACE_DIR"
+
+# Replica apenas preferências visuais/teclas do VS Code na primeira execução.
+if [ ! -f "$VSCODE_DATA/.codex-profile-initialized" ]; then
+
+  BASE_USER="$HOME/.config/Code/User"
+
+  [ -f "$BASE_USER/settings.json" ] && \
+    cp "$BASE_USER/settings.json" "$VSCODE_DATA/User/settings.json"
+
+  [ -f "$BASE_USER/keybindings.json" ] && \
+    cp "$BASE_USER/keybindings.json" "$VSCODE_DATA/User/keybindings.json"
+
+  [ -d "$BASE_USER/snippets" ] && \
+    cp -a "$BASE_USER/snippets" "$VSCODE_DATA/User/"
+
+  touch "$VSCODE_DATA/.codex-profile-initialized"
+fi
+
+python3 - "$WORKSPACE_FILE" "$TARGET" "$EMOJI" "$LABEL" <<'PY'
+import json
+import sys
+
+workspace, target, emoji, label = sys.argv[1:]
+
+data = {
+    "folders": [
+        {
+            "path": target
+        }
+    ],
+    "settings": {
+        "window.title": (
+            f"{emoji} CODEX · {label} — "
+            "${rootName}${separator}${activeEditorShort}"
+        )
+    }
+}
+
+with open(workspace, "w", encoding="utf-8") as f:
+    json.dump(data, f, ensure_ascii=False, indent=2)
+    f.write("\n")
+PY
+
+echo
+echo "$EMOJI CODEX · $LABEL"
+echo "Projeto:    $TARGET"
+echo "CODEX_HOME: $CODEX_PROFILE_HOME"
+echo
+
+export CODEX_PROJECT_ROOT="$TARGET"
+unset MCPORTER_CONFIG
+
+if [[ "$PROFILE" == "intraer" ]]; then
+  export AGENT_BROWSER_NO_WEBMCP=1
+  export NO_UPDATE_NOTIFIER=1
+  export CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS=1
+  export CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS=1
+fi
+
+CODEX_HOME="$CODEX_PROFILE_HOME" \
+code \
+  --new-window \
+  --user-data-dir="$VSCODE_DATA" \
+  --extensions-dir="$HOME/.vscode/extensions" \
+  "$WORKSPACE_FILE"

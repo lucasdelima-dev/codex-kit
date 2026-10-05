@@ -1,0 +1,33 @@
+# Nunca versionar autenticação/segredos
+auth.json
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Estado específico da máquina
+manifests/current-machine.txt
+manifests/install-provenance.txt
+
+# Runtime / caches / temporários
+*.log
+*.tmp
+.cache/
+tmp/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Backups locais
+*.bak
+*.backup
+*.pre-bootstrap-*
+
+# Local Codex project state
+.codegraph/
+.serena/
+.beads/
+.codex-local/
+config/mcporter.json

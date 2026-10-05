@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -e
+
+REAL="$HOME/.local/lib/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools.js"
+ROOT="${CODEX_PROJECT_ROOT:-$PWD}"
+
+ROOT="$(realpath "$ROOT")"
+
+export CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS=1
+export CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS=1
+
+safe_start() {
+  node "$REAL" stop >/dev/null 2>&1 || true
+
+  node "$REAL" start \
+    --workspace="$ROOT" \
+    --allow-unrestricted-paths=false \
+    --performance-crux=false \
+    --usage-statistics=false \
+    --redact-network-headers=true \
+    --category-extensions=false \
+    --memory-debugging=false \
+    --category-experimental-third-party=false \
+    --category-experimental-webmcp=false \
+    --headless=true \
+    --isolated=true >/dev/null 2>&1
+}
+
+case "${1:-}" in
+  --version|-V|--help|-h|status|stop)
+    exec node "$REAL" "$@"
+    ;;
+  start)
+    safe_start
+    exit 0
+    ;;
+esac
+
+STATUS="$(node "$REAL" status 2>/dev/null || true)"
+
+if ! grep -q 'daemon is running' <<<"$STATUS" ||
+   ! grep -Fq -- "--filesystem-root=$ROOT" <<<"$STATUS" ||
+   ! grep -Fq -- '--no-performance-crux' <<<"$STATUS"; then
+  safe_start
+fi
+
+exec node "$REAL" "$@"
