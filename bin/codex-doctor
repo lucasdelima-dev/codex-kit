@@ -169,9 +169,6 @@ fi
 if grep -rInE \
   '/home/[^/]+/|/Users/[^/]+/|[A-Za-z]:\\Users\\[^\\]+\\' \
   "$HOME/.mcporter/mcporter.json" \
-  "$HOME/.codex-profiles"/*/config.toml \
-  "$HOME/.codex-profiles"/*/AGENTS.md \
-  "$HOME/.codex-profiles"/*/rules \
   "$KIT/templates/profiles" \
   "$KIT/wrappers" \
   >/dev/null 2>&1
