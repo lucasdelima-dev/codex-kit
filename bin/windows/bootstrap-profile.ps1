@@ -93,7 +93,7 @@ foreach ($Name in $Targets) {
         "rules\default.rules"
     )) {
         if (-not (Test-Path (Join-Path $Template $Required))) {
-            throw "$Name: template ausente: $Required"
+            throw "${Name}: template ausente: $Required"
         }
     }
 
@@ -167,7 +167,7 @@ O bootstrap deliberadamente não copia credenciais entre perfis.
         $Destination = Join-Path $SkillsRoot $Skill
 
         if (-not (Test-Path $Source)) {
-            throw "$Name: Skill compartilhada ausente: $Skill"
+            throw "${Name}: Skill compartilhada ausente: $Skill"
         }
 
         New-Item `
@@ -187,7 +187,7 @@ O bootstrap deliberadamente não copia credenciais entre perfis.
     $Expected = $Definitions[$Name].Count
 
     if ($Count -ne $Expected) {
-        throw "$Name: skills $Count/$Expected"
+        throw "${Name}: skills $Count/$Expected"
     }
 
     Write-Ok "skills: $Count"
@@ -215,7 +215,7 @@ O bootstrap deliberadamente não copia credenciais entre perfis.
                 --json
 
             if ($LASTEXITCODE -ne 0) {
-                throw "$Name: instalação do Superpowers falhou."
+                throw "${Name}: instalação do Superpowers falhou."
             }
         }
         finally {
@@ -236,7 +236,7 @@ O bootstrap deliberadamente não copia credenciais entre perfis.
     }
 
     if (-not $SuperpowersPresent) {
-        throw "$Name: Superpowers $SuperpowersVersion não encontrado."
+        throw "${Name}: Superpowers $SuperpowersVersion não encontrado."
     }
 
     Write-Ok "superpowers $SuperpowersVersion"
