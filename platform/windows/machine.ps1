@@ -1,5 +1,11 @@
 $ErrorActionPreference = "Stop"
 
+if (Get-Variable `
+    PSNativeCommandUseErrorActionPreference `
+    -ErrorAction SilentlyContinue) {
+    $PSNativeCommandUseErrorActionPreference = $true
+}
+
 . (Join-Path $PSScriptRoot "common.ps1")
 
 $Versions = Read-EnvManifest (Join-Path $Kit "manifests\tools.env")
@@ -53,24 +59,41 @@ function Get-PackageVersion {
 function Ensure-NpmPackage {
     param(
         [string]$Package,
-        [string]$Version
+        [string]$Version,
+        [string]$AllowScripts = "",
+        [string]$RequiredFile = ""
     )
 
     $PackagePath = ($Package -split "/") -join [IO.Path]::DirectorySeparatorChar
     $Json = Join-Path $NpmPrefix "node_modules\$PackagePath\package.json"
     $Current = Get-PackageVersion $Json
 
-    if ($Current -eq $Version) {
+    if (
+        $Current -eq $Version -and
+        (-not $RequiredFile -or (Test-Path $RequiredFile))
+    ) {
         Write-Ok "$Package@$Version"
         return
     }
 
     Write-Step "Instalando $Package@$Version"
 
-    & $script:NpmCmd install -g --prefix $NpmPrefix "$Package@$Version"
+    $Args = @("install", "-g", "--prefix", $NpmPrefix)
+
+    if ($AllowScripts) {
+        $Args += "--allow-scripts=$AllowScripts"
+    }
+
+    $Args += "$Package@$Version"
+
+    & $script:NpmCmd @Args
 
     if ($LASTEXITCODE -ne 0) {
         throw "Falha instalando $Package@$Version"
+    }
+
+    if ($RequiredFile -and -not (Test-Path $RequiredFile)) {
+        throw "Binário esperado ausente: $RequiredFile"
     }
 }
 
@@ -303,7 +326,11 @@ Ensure-NpmPackage "@openai/codex"          $CodexVersion
 Ensure-NpmPackage "@fission-ai/openspec"  $OpenSpecVersion
 Ensure-NpmPackage "@lzehrung/codegraph"   $CodeGraphVersion
 Ensure-NpmPackage "ctx7"                  $Ctx7Version
-Ensure-NpmPackage "@beads/bd"             $BeadsVersion
+Ensure-NpmPackage `
+    "@beads/bd" `
+    $BeadsVersion `
+    "@beads/bd" `
+    (Join-Path $NpmPrefix "node_modules\@beads\bd\bin\bd.exe")
 Ensure-NpmPackage "repomix"               $RepomixVersion
 Ensure-NpmPackage "agent-browser"         $AgentBrowserVersion
 Ensure-NpmPackage "@playwright/cli"       $PlaywrightVersion

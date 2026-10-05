@@ -34,6 +34,14 @@ jobs:
         run: |
           mkdir -p "$HOME/.codex"
           printf "{}\n" > "$HOME/.codex/auth.json"
+
+          . ./manifests/tools.env
+
+          for profile in lean backend frontend research security full experimental intraer
+          do
+            mkdir -p "$HOME/.codex-profiles/$profile/plugins/superpowers/$SUPERPOWERS_EXPECTED_VERSION"
+          done
+
           ./bin/bootstrap-profile all
 
       - name: Neutral project smoke (Unix)
@@ -58,6 +66,26 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force "$HOME\.codex" | Out-Null
           "{}" | Set-Content "$HOME\.codex\auth.json"
+
+          $line = Get-Content ".\manifests\tools.env" |
+            Where-Object {
+              $_ -match '^SUPERPOWERS_EXPECTED_VERSION='
+            } |
+            Select-Object -First 1
+
+          $version = ($line -split "=", 2)[1].Trim().Trim('"')
+
+          foreach ($profile in @(
+            "lean", "backend", "frontend", "research",
+            "security", "full", "experimental", "intraer"
+          )) {
+            New-Item `
+              -ItemType Directory `
+              -Force `
+              "$HOME\.codex-profiles\$profile\plugins\superpowers\$version" |
+              Out-Null
+          }
+
           & ".\bin\bootstrap-profile.ps1" all
 
       - name: Neutral project smoke (Windows)

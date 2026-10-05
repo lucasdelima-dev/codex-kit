@@ -151,7 +151,11 @@ ensure_npm "@openai/codex" "$CODEX_VERSION"
 ensure_npm "@fission-ai/openspec" "$OPENSPEC_VERSION"
 ensure_npm "@lzehrung/codegraph" "$CODEGRAPH_VERSION"
 ensure_npm "ctx7" "$CTX7_VERSION"
-ensure_npm "@beads/bd" "$BEADS_VERSION"
+ensure_npm \
+  "@beads/bd" \
+  "$BEADS_VERSION" \
+  "@beads/bd" \
+  "$PREFIX/lib/node_modules/@beads/bd/bin/bd"
 ensure_npm "repomix" "$REPOMIX_VERSION"
 ensure_npm "agent-browser" "$AGENT_BROWSER_VERSION"
 ensure_npm "@playwright/cli" "$PLAYWRIGHT_CLI_VERSION"
