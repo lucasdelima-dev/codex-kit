@@ -27,31 +27,18 @@ pkg_version() {
 ensure_npm() {
   local pkg="$1"
   local wanted="$2"
-  local allow_scripts="${3:-}"
-  local required_file="${4:-}"
   local json="$PREFIX/lib/node_modules/$pkg/package.json"
   local current=""
 
   current="$(pkg_version "$json" 2>/dev/null || true)"
 
-  if [ "$current" = "$wanted" ] &&
-     { [ -z "$required_file" ] || [ -x "$required_file" ]; }; then
+  if [ "$current" = "$wanted" ]; then
     ok "$pkg@$wanted"
     return
   fi
 
   log "Instalando $pkg@$wanted"
-
-  if [ -n "$allow_scripts" ]; then
-    "$NPM" install -g       --prefix "$PREFIX"       --allow-scripts="$allow_scripts"       "$pkg@$wanted"
-  else
-    "$NPM" install -g --prefix "$PREFIX" "$pkg@$wanted"
-  fi
-
-  if [ -n "$required_file" ] && [ ! -x "$required_file" ]; then
-    echo "Binário esperado ausente: $required_file" >&2
-    return 1
-  fi
+  "$NPM" install -g --prefix "$PREFIX" "$pkg@$wanted"
 }
 
 ensure_uv_tool() {

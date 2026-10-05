@@ -326,11 +326,6 @@ Ensure-NpmPackage "@openai/codex"          $CodexVersion
 Ensure-NpmPackage "@fission-ai/openspec"  $OpenSpecVersion
 Ensure-NpmPackage "@lzehrung/codegraph"   $CodeGraphVersion
 Ensure-NpmPackage "ctx7"                  $Ctx7Version
-Ensure-NpmPackage `
-    "@beads/bd" `
-    $BeadsVersion `
-    "@beads/bd" `
-    (Join-Path $NpmPrefix "node_modules\@beads\bd\bin\bd.exe")
 Ensure-NpmPackage "repomix"               $RepomixVersion
 Ensure-NpmPackage "agent-browser"         $AgentBrowserVersion
 Ensure-NpmPackage "@playwright/cli"       $PlaywrightVersion
@@ -429,6 +424,72 @@ else {
     Write-Ok "rtk@$RtkVersion"
 }
 
+
+
+Write-Step "Beads $BeadsVersion"
+
+$BdExe = Join-Path $BinRoot "bd.exe"
+$BdCurrent = $null
+
+if (Test-Path $BdExe) {
+    $RawBd = & $BdExe --version 2>$null
+
+    if ($RawBd -match '([0-9]+\.[0-9]+\.[0-9]+)') {
+        $BdCurrent = $Matches[1]
+    }
+}
+
+if ($BdCurrent -ne $BeadsVersion) {
+    $Tmp = Join-Path `
+        ([IO.Path]::GetTempPath()) `
+        ("codex-beads-" + [guid]::NewGuid())
+
+    $Extract = Join-Path $Tmp "extract"
+    New-Item -ItemType Directory -Force $Extract | Out-Null
+
+    $Asset = "beads_${BeadsVersion}_windows_amd64.zip"
+    $Base = "https://github.com/gastownhall/beads/releases/download/v$BeadsVersion"
+
+    $Archive = Join-Path $Tmp $Asset
+    $Checksums = Join-Path $Tmp "checksums.txt"
+
+    Invoke-WebRequest "$Base/$Asset" -OutFile $Archive
+    Invoke-WebRequest "$Base/checksums.txt" -OutFile $Checksums
+
+    $ChecksumLine = Get-Content $Checksums |
+        Where-Object {
+            $parts = $_ -split '\s+'
+            $name = $parts[-1].TrimStart('*')
+            $name -eq $Asset
+        } |
+        Select-Object -First 1
+
+    if (-not $ChecksumLine) {
+        throw "Checksum do Beads não encontrado."
+    }
+
+    $Expected = ($ChecksumLine -split '\s+')[0].ToLowerInvariant()
+    $Actual = (Get-FileHash $Archive -Algorithm SHA256).Hash.ToLowerInvariant()
+
+    if ($Expected -ne $Actual) {
+        throw "Checksum do Beads inválido."
+    }
+
+    Expand-Archive $Archive -DestinationPath $Extract
+
+    $Found = Get-ChildItem $Extract -Recurse -Filter "bd.exe" |
+        Select-Object -First 1
+
+    if (-not $Found) {
+        throw "bd.exe não encontrado no release."
+    }
+
+    Copy-Item $Found.FullName $BdExe -Force
+    Remove-Item $Tmp -Recurse -Force
+}
+else {
+    Write-Ok "Beads $BeadsVersion"
+}
 
 Write-Step "pnpm para OpenDesign"
 
@@ -692,7 +753,7 @@ Write-Step "Validação"
 & (Join-Path $BinRoot "serena.exe") --version
 & (Join-Path $BinRoot "mcporter.ps1") --version
 & (Join-Path $NpmPrefix "ctx7.cmd") --version
-& (Join-Path $NpmPrefix "bd.cmd") --version
+& $BdExe --version
 & (Join-Path $NpmPrefix "repomix.cmd") --version
 & (Join-Path $BinRoot "semgrep.exe") --version
 & (Join-Path $NpmPrefix "agent-browser.cmd") --version

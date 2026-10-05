@@ -143,11 +143,6 @@ ensure_npm "@openai/codex" "$CODEX_VERSION"
 ensure_npm "@fission-ai/openspec" "$OPENSPEC_VERSION"
 ensure_npm "@lzehrung/codegraph" "$CODEGRAPH_VERSION"
 ensure_npm "ctx7" "$CTX7_VERSION"
-ensure_npm \
-  "@beads/bd" \
-  "$BEADS_VERSION" \
-  "@beads/bd" \
-  "$PREFIX/lib/node_modules/@beads/bd/bin/bd"
 ensure_npm "repomix" "$REPOMIX_VERSION"
 ensure_npm "agent-browser" "$AGENT_BROWSER_VERSION"
 ensure_npm "@playwright/cli" "$PLAYWRIGHT_CLI_VERSION"
@@ -218,6 +213,73 @@ else
   ok "rtk@$RTK_VERSION"
 fi
 
+
+
+log "Beads $BEADS_VERSION"
+
+case "$ARCH" in
+  x86_64)
+    BEADS_ARCH="amd64"
+    ;;
+  aarch64)
+    BEADS_ARCH="arm64"
+    ;;
+  *)
+    echo "Arquitetura Beads não suportada: $ARCH" >&2
+    exit 3
+    ;;
+esac
+
+BEADS_CURRENT="$(
+  "$BIN/bd" --version 2>/dev/null |
+    grep -oE '[0-9]+\.[0-9]+\.[0-9]+' |
+    head -1 || true
+)"
+
+if [ "$BEADS_CURRENT" != "$BEADS_VERSION" ]; then
+  TMP="$(mktemp -d)"
+  EXTRACT="$TMP/extract"
+  ASSET="beads_${BEADS_VERSION}_linux_${BEADS_ARCH}.tar.gz"
+  BASE="https://github.com/gastownhall/beads/releases/download/v$BEADS_VERSION"
+
+  mkdir -p "$EXTRACT"
+
+  curl -fsSL "$BASE/$ASSET" -o "$TMP/$ASSET"
+  curl -fsSL "$BASE/checksums.txt" -o "$TMP/checksums.txt"
+
+  EXPECTED="$(
+    awk -v target="$ASSET" '
+      { name=$2; sub(/^\*/, "", name); if (name == target) { print $1; exit } }
+    ' "$TMP/checksums.txt"
+  )"
+
+  [ -n "$EXPECTED" ] || {
+    echo "Checksum do Beads não encontrado." >&2
+    exit 3
+  }
+
+  ACTUAL="$(sha256sum "$TMP/$ASSET" | awk '{print $1}')"
+
+  [ "$EXPECTED" = "$ACTUAL" ] || {
+    echo "Checksum do Beads inválido." >&2
+    exit 3
+  }
+
+  tar -xzf "$TMP/$ASSET" -C "$EXTRACT"
+
+  BD_BIN="$(find "$EXTRACT" -type f -name bd -print -quit)"
+
+  [ -n "$BD_BIN" ] || {
+    echo "Binário Beads não encontrado no release." >&2
+    exit 3
+  }
+
+  rm -f "$BIN/bd"
+  install -m 755 "$BD_BIN" "$BIN/bd"
+  rm -rf "$TMP"
+else
+  ok "Beads $BEADS_VERSION"
+fi
 
 log "pnpm para OpenDesign"
 
