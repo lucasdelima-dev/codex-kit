@@ -95,7 +95,7 @@ if ($Beads) {
         Write-Ok "já inicializado"
     }
     else {
-        $Bd = Join-Path $HOME ".local\npm\bd.cmd"
+        $Bd = Join-Path $HOME ".local\bin\bd.exe"
 
         if (-not (Test-Path $Bd)) {
             throw "Beads CLI não encontrado: $Bd"
