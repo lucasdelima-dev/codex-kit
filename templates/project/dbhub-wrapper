@@ -20,4 +20,4 @@ if grep -Fq '${DBHUB_DSN}' "$CONFIG" && [ -z "${DBHUB_DSN:-}" ]; then
   exit 2
 fi
 
-exec "$DBHUB_BIN" --config "$CONFIG"
+exec "$DBHUB_BIN" --transport stdio --config "$CONFIG"

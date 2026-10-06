@@ -39,6 +39,7 @@ jobs:
             bin/bootstrap-profile \
             bin/bootstrap-project \
             bin/codex-doctor \
+            tests/dbhub-security-smoke.sh \
             platform/linux/machine.sh \
             platform/macos/machine.sh \
             wrappers/codex-code \
@@ -93,6 +94,21 @@ jobs:
           grep -q 'CODEX_VERSION="0.160.0"' manifests/tools.env
           test "$(grep -R 'model = "gpt-6.1-sol"' templates/profiles/*/config.toml | wc -l)" -eq 8
           test "$(grep -R 'model_reasoning_effort = "medium"' templates/profiles/*/config.toml | wc -l)" -eq 8
+
+      - name: Validate DBHub hardening
+        shell: bash
+        run: |
+          grep -q 'DBHUB_VERSION="1.4.0"' manifests/tools.env
+          grep -q '^lazy = true$' templates/project/dbhub.toml
+          grep -q '^query_timeout = 10$' templates/project/dbhub.toml
+          grep -q '^readonly = true$' templates/project/dbhub.toml
+          grep -q '^max_rows = 500$' templates/project/dbhub.toml
+          grep -q -- '--transport stdio' templates/project/dbhub-wrapper
+          grep -q -- '--transport stdio' templates/project/windows/dbhub.ps1
+          ! grep -q '"dbhub"' templates/mcporter/global.json
+          grep -q '"dbhub"' templates/mcporter/project-dbhub.json
+          grep -qxF '.codex-local/' templates/project/git-info-exclude.txt
+          grep -qxF 'config/mcporter.json' templates/project/git-info-exclude.txt
 
       - name: Git whitespace check
         shell: bash

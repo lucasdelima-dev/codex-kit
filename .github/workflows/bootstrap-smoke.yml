@@ -55,6 +55,11 @@ jobs:
           CODEX_KIT="$GITHUB_WORKSPACE" \
             "$GITHUB_WORKSPACE/bin/codex-doctor"
 
+      - name: DBHub security smoke (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: ./tests/dbhub-security-smoke.sh
+
       - name: Bootstrap machine (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -97,6 +102,11 @@ jobs:
           }
 
           & ".\bin\bootstrap-profile.ps1" all
+
+      - name: DBHub security smoke (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: '& ".\tests\dbhub-security-smoke.ps1"'
 
       - name: Neutral project smoke (Windows)
         if: runner.os == 'Windows'
