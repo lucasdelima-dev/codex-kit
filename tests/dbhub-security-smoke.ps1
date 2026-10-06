@@ -54,7 +54,15 @@ if (
 
 $localConfig = Join-Path `
     $project `
-    ".codex-local\dbhub.toml"
+    ".codex-local\dbhub\dbhub.toml"
+
+if (-not (Test-Path $localConfig)) {
+    throw "config DBHub local não encontrada: $localConfig"
+}
+
+if (-not (Test-Path $config)) {
+    throw "config mcporter local não encontrada: $config"
+}
 
 foreach ($path in @($localConfig, $config)) {
     git -C $project check-ignore -q $path
