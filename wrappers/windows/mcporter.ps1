@@ -2,7 +2,12 @@ $ErrorActionPreference = "Stop"
 
 $Node24 = Join-Path $HOME ".local\opt\node24"
 $Root   = Join-Path $HOME ".local\share\mcporter"
-$Cli    = Join-Path $Root "node_modules\.bin\mcporter.cmd"
+$Node   = Join-Path $Node24 "node.exe"
+$Cli    = Join-Path $Root "node_modules\mcporter\dist\cli.js"
+
+if (-not (Test-Path $Node)) {
+    throw "Node 24 não encontrado em $Node"
+}
 
 if (-not (Test-Path $Cli)) {
     throw "mcporter não encontrado em $Cli"
@@ -14,5 +19,5 @@ if ($env:CODEX_PROJECT_ROOT) {
     Set-Location $env:CODEX_PROJECT_ROOT
 }
 
-& $Cli @args
+& $Node $Cli @args
 exit $LASTEXITCODE

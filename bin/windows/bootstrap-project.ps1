@@ -246,24 +246,47 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0dbhub.ps1" %*
 
     $Servers = $Mcporter.mcpServers
 
-    if (-not $Servers.PSObject.Properties["dbhub"]) {
+    $DbHubNode = Join-Path $HOME ".local\opt\node24\node.exe"
+    $DbHubCli = Join-Path $HOME ".local\npm\node_modules\@bytebase\dbhub\dist\index.js"
+
+    $DbHubEntry = $Servers.PSObject.Properties["dbhub"]
+    $LegacyManaged = $false
+
+    if ($DbHubEntry) {
+        $Existing = $DbHubEntry.Value
+
+        $LegacyManaged = (
+            $Existing.description -eq "DBHub local readonly deste projeto" -and
+            (
+                $Existing.command -eq '${CODEX_PROJECT_ROOT}\.codex-local\bin\dbhub.cmd' -or
+                $Existing.command -eq "powershell.exe"
+            )
+        )
+    }
+
+    if (-not $DbHubEntry -or $LegacyManaged) {
         $DbHubDefinition = [PSCustomObject]@{
             description = "DBHub local readonly deste projeto"
-            command = "powershell.exe"
+            command = $DbHubNode
             args = @(
-                "-NoProfile"
-                "-ExecutionPolicy"
-                "Bypass"
-                "-File"
-                '${CODEX_PROJECT_ROOT}\.codex-local\bin\dbhub.ps1'
+                $DbHubCli
+                "--transport"
+                "stdio"
+                "--config"
+                '${CODEX_PROJECT_ROOT}\.codex-local\dbhub\dbhub.toml'
             )
             cwd = '${CODEX_PROJECT_ROOT}'
         }
 
-        $Servers |
-            Add-Member `
-                -NotePropertyName dbhub `
-                -NotePropertyValue $DbHubDefinition
+        if ($DbHubEntry) {
+            $DbHubEntry.Value = $DbHubDefinition
+        }
+        else {
+            $Servers |
+                Add-Member `
+                    -NotePropertyName dbhub `
+                    -NotePropertyValue $DbHubDefinition
+        }
 
         $Mcporter |
             ConvertTo-Json -Depth 20 |
@@ -271,10 +294,13 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0dbhub.ps1" %*
                 -Path $McporterFile `
                 -Encoding UTF8
 
-        Write-Ok "DBHub adicionado ao mcporter"
+        Write-Ok "DBHub MCP configurado com Node nativo"
+    }
+    elseif ($DbHubEntry.Value.command -eq $DbHubNode) {
+        Write-Ok "DBHub MCP nativo já configurado"
     }
     else {
-        Write-Ok "DBHub já presente no mcporter"
+        Write-Warning "DBHub personalizado preservado; confira a configuração manualmente."
     }
 
     if ([string]::IsNullOrWhiteSpace($env:DBHUB_DSN)) {

@@ -1,0 +1,104 @@
+name: DBHub Windows Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/dbhub-windows-smoke.yml"
+      - ".github/workflows/ci.yml"
+      - "bin/windows/bootstrap-project.ps1"
+      - "platform/windows/common.ps1"
+      - "wrappers/windows/mcporter.ps1"
+      - "templates/project/dbhub.toml"
+      - "templates/project/git-info-exclude.txt"
+      - "tests/dbhub-security-smoke.ps1"
+  pull_request:
+    paths:
+      - ".github/workflows/dbhub-windows-smoke.yml"
+      - "bin/windows/bootstrap-project.ps1"
+      - "platform/windows/common.ps1"
+      - "wrappers/windows/mcporter.ps1"
+      - "templates/project/dbhub.toml"
+      - "templates/project/git-info-exclude.txt"
+      - "tests/dbhub-security-smoke.ps1"
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: DBHub Windows Integration
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.21.0"
+
+      - name: Prepare isolated runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $nodeSource = (Get-Command node).Source
+          $nodeRoot = Join-Path $HOME ".local\opt\node24"
+          $binRoot = Join-Path $HOME ".local\bin"
+          $npmRoot = Join-Path $HOME ".local\npm"
+          $mcporterRoot = Join-Path $HOME ".local\share\mcporter"
+          $globalRoot = Join-Path $HOME ".mcporter"
+
+          foreach ($dir in @(
+            $nodeRoot, $binRoot, $npmRoot,
+            $mcporterRoot, $globalRoot
+          )) {
+            New-Item -ItemType Directory -Force $dir | Out-Null
+          }
+
+          Copy-Item $nodeSource (Join-Path $nodeRoot "node.exe") -Force
+
+          & npm.cmd install -g `
+            --prefix $npmRoot `
+            --ignore-scripts --no-audit --no-fund `
+            "@bytebase/dbhub@1.4.0"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Instalação DBHub falhou"
+          }
+
+          & npm.cmd install `
+            --prefix $mcporterRoot `
+            --ignore-scripts --no-audit --no-fund `
+            "mcporter@0.14.1"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Instalação mcporter falhou"
+          }
+
+          Copy-Item `
+            ".\wrappers\windows\mcporter.ps1" `
+            (Join-Path $binRoot "mcporter.ps1") -Force
+
+          '{"mcpServers":{}}' |
+            Set-Content (Join-Path $globalRoot "mcporter.json")
+
+          foreach ($file in @(
+            (Join-Path $nodeRoot "node.exe"),
+            (Join-Path $npmRoot "node_modules\@bytebase\dbhub\dist\index.js"),
+            (Join-Path $mcporterRoot "node_modules\mcporter\dist\cli.js")
+          )) {
+            if (-not (Test-Path $file)) {
+              throw "Runtime ausente: $file"
+            }
+          }
+
+          Write-Host "Runtime Windows isolado preparado"
+
+      - name: DBHub read-only integration
+        shell: pwsh
+        run: |
+          & ".\tests\dbhub-security-smoke.ps1"

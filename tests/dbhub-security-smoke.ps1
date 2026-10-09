@@ -83,24 +83,43 @@ foreach ($path in @($localConfig, $config)) {
     }
 }
 
-$oldNative = $PSNativeCommandUseErrorActionPreference
-$PSNativeCommandUseErrorActionPreference = $false
+$McporterPs = Join-Path $HOME ".local\bin\mcporter.ps1"
 
-try {
-    $read = (
-        & mcporter `
+if (-not (Test-Path $McporterPs)) {
+    throw "wrapper mcporter.ps1 não encontrado"
+}
+
+function Invoke-DbHubSql {
+    param([Parameter(Mandatory = $true)][string]$Sql)
+
+    $payload = @{ sql = $Sql } | ConvertTo-Json -Compress
+
+    $output = (
+        & $McporterPs `
             call `
-            'dbhub.execute_sql(sql: "SELECT 1 AS ok")' `
+            dbhub.execute_sql `
+            --args $payload `
             --config $config `
             2>&1 |
         Out-String
     )
 
-    $readStatus = $LASTEXITCODE
+    return [PSCustomObject]@{
+        Output = $output
+        Status = $LASTEXITCODE
+    }
+}
+
+$oldNative = $PSNativeCommandUseErrorActionPreference
+$PSNativeCommandUseErrorActionPreference = $false
+
+try {
+    $readResult = Invoke-DbHubSql -Sql "SELECT 1 AS ok"
+    $read = $readResult.Output
 
     Write-Host $read
 
-    if ($readStatus -ne 0) {
+    if ($readResult.Status -ne 0) {
         throw "SELECT DBHub falhou"
     }
 
@@ -123,18 +142,9 @@ try {
             [string]$Sql
         )
 
-        $call = "dbhub.execute_sql(sql: `"$Sql`")"
-
-        $out = (
-            & mcporter `
-                call `
-                $call `
-                --config $config `
-                2>&1 |
-            Out-String
-        )
-
-        $status = $LASTEXITCODE
+        $result = Invoke-DbHubSql -Sql $Sql
+        $out = $result.Output
+        $status = $result.Status
 
         Write-Host $out
 
