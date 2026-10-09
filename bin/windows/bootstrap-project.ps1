@@ -249,8 +249,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0dbhub.ps1" %*
     if (-not $Servers.PSObject.Properties["dbhub"]) {
         $DbHubDefinition = [PSCustomObject]@{
             description = "DBHub local readonly deste projeto"
-            command = '${CODEX_PROJECT_ROOT}\.codex-local\bin\dbhub.cmd'
-            args = @()
+            command = "powershell.exe"
+            args = @(
+                "-NoProfile"
+                "-ExecutionPolicy"
+                "Bypass"
+                "-File"
+                '${CODEX_PROJECT_ROOT}\.codex-local\bin\dbhub.ps1'
+            )
             cwd = '${CODEX_PROJECT_ROOT}'
         }
 

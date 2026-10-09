@@ -105,6 +105,32 @@ jobs:
           grep -q '^max_rows = 500$' templates/project/dbhub.toml
           grep -q -- '--transport stdio' templates/project/dbhub-wrapper
           grep -q -- '--transport stdio' templates/project/windows/dbhub.ps1
+          python - <<'PYDBHUB'
+          from pathlib import Path
+          import re
+
+          text = Path("bin/windows/bootstrap-project.ps1").read_text()
+
+          match = re.search(
+              r'\$DbHubDefinition = \[PSCustomObject\]@\{(.*?)\n\s*\}',
+              text,
+              re.S,
+          )
+
+          if not match:
+              raise SystemExit("DbHubDefinition Windows não encontrado")
+
+          block = match.group(1)
+
+          if 'command = "powershell.exe"' not in block:
+              raise SystemExit("DBHub Windows não usa powershell.exe")
+
+          if '${CODEX_PROJECT_ROOT}\\.codex-local\\bin\\dbhub.ps1' not in block:
+              raise SystemExit("DBHub Windows não aponta para dbhub.ps1")
+
+          if "dbhub.cmd" in block:
+              raise SystemExit("DBHub Windows voltou a executar dbhub.cmd diretamente")
+          PYDBHUB
           ! grep -q '"dbhub"' templates/mcporter/global.json
           grep -q '"dbhub"' templates/mcporter/project-dbhub.json
           grep -qxF '.codex-local/' templates/project/git-info-exclude.txt
