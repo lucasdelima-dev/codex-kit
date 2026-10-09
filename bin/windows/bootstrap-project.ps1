@@ -101,16 +101,61 @@ if ($Beads) {
             throw "Beads CLI não encontrado: $Bd"
         }
 
+        $OldBeadsDir = $env:BEADS_DIR
+        $OldBeadsMetrics = $env:BD_DISABLE_METRICS
+
         Push-Location $Root
 
         try {
-            & $Bd init --stealth
+            $env:BEADS_DIR = $BeadsDir
+            $env:BD_DISABLE_METRICS = "1"
+
+            & $Bd init `
+                --quiet `
+                --stealth `
+                --non-interactive `
+                --skip-hooks `
+                --skip-agents
 
             if ($LASTEXITCODE -ne 0) {
                 throw "Falha inicializando Beads."
             }
+
+            & $Bd config set no-git-ops true *> $null
+
+            if ($LASTEXITCODE -ne 0) {
+                throw "Falha configurando no-git-ops local."
+            }
+
+            & $Bd config set export.git-add false *> $null
+
+            if ($LASTEXITCODE -ne 0) {
+                throw "Falha desativando export.git-add."
+            }
+
+            $BeadsConfig = Get-Content `
+                (Join-Path $BeadsDir "config.yaml") -Raw
+
+            if ($BeadsConfig -notmatch '(?m)^no-git-ops:\s*true\s*$') {
+                throw "Beads sem no-git-ops na configuração local."
+            }
         }
         finally {
+            if ($null -eq $OldBeadsDir) {
+                Remove-Item Env:BEADS_DIR -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:BEADS_DIR = $OldBeadsDir
+            }
+
+            if ($null -eq $OldBeadsMetrics) {
+                Remove-Item Env:BD_DISABLE_METRICS `
+                    -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:BD_DISABLE_METRICS = $OldBeadsMetrics
+            }
+
             Pop-Location
         }
 

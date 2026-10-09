@@ -101,12 +101,26 @@ if [ "$WITH_BEADS" -eq 1 ]; then
   if [ -d "$ROOT/.beads" ]; then
     echo "    já inicializado: OK"
   else
-    git -C "$ROOT" config beads.role maintainer
-
     (
       cd "$ROOT"
       export BEADS_DIR="$ROOT/.beads"
-      bd init --quiet --stealth </dev/null
+      export BD_DISABLE_METRICS=1
+      bd init \
+        --quiet \
+        --stealth \
+        --non-interactive \
+        --skip-hooks \
+        --skip-agents </dev/null
+
+      # Garantir políticas no projeto, nunca depender da configuração global.
+      bd config set no-git-ops true >/dev/null
+      bd config set export.git-add false >/dev/null
+
+      if ! grep -Eq '^no-git-ops:[[:space:]]*true' \
+          "$BEADS_DIR/config.yaml"; then
+        echo "ERRO: Beads sem no-git-ops local" >&2
+        exit 1
+      fi
     )
 
     echo "    inicializado local/stealth: OK"

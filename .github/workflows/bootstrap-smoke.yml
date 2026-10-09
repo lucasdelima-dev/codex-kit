@@ -60,6 +60,11 @@ jobs:
         shell: bash
         run: ./tests/dbhub-security-smoke.sh
 
+      - name: Beads security smoke (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: ./tests/beads-security-smoke.sh
+
       - name: Bootstrap machine (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -107,6 +112,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: '& ".\tests\dbhub-security-smoke.ps1"'
+
+      - name: Beads security smoke (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: '& ".\tests\beads-security-smoke.ps1"'
 
       - name: Neutral project smoke (Windows)
         if: runner.os == 'Windows'
