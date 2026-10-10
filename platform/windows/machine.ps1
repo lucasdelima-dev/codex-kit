@@ -29,6 +29,7 @@ $DbhubVersion         = $Versions["DBHUB_VERSION"]
 $UiUxVersion          = $Versions["UI_UX_PRO_MAX_VERSION"]
 $OpenDesignVersion    = $Versions["OPENDESIGN_VERSION"]
 $OpenDesignTag        = $Versions["OPENDESIGN_TAG"]
+$OpenDesignCommit     = $Versions["OPENDESIGN_COMMIT"]
 $PnpmVersion          = $Versions["PNPM_VERSION"]
 
 $NpmPrefix = Join-Path $LocalRoot "npm"
@@ -126,6 +127,84 @@ function Ensure-UvTool {
     if ($LASTEXITCODE -ne 0) {
         throw "Falha instalando $Package==$Version"
     }
+}
+
+
+
+function Ensure-AgentBrowser {
+    $Root = Join-Path $NpmPrefix "node_modules\agent-browser"
+    $Json = Join-Path $Root "package.json"
+    $Current = Get-PackageVersion $Json
+
+    $Asset = "agent-browser-win32-x64.exe"
+    $Target = Join-Path $Root "bin\$Asset"
+    $Expected = $Versions["AGENT_BROWSER_SHA256_WINDOWS_X64"]
+
+    if ($Current -ne $AgentBrowserVersion) {
+        Write-Step "Instalando agent-browser sem postinstall"
+
+        & $script:NpmCmd install `
+            -g `
+            --prefix $NpmPrefix `
+            --ignore-scripts `
+            "agent-browser@$AgentBrowserVersion"
+
+        if ($LASTEXITCODE -ne 0) {
+            throw "Falha instalando agent-browser."
+        }
+    }
+
+    if (-not (Test-Path (Join-Path $Root "bin\agent-browser.js"))) {
+        throw "Wrapper do agent-browser ausente."
+    }
+
+    $Actual = ""
+
+    if (Test-Path $Target) {
+        $Actual = (
+            Get-FileHash $Target -Algorithm SHA256
+        ).Hash.ToLowerInvariant()
+    }
+
+    if ($Actual -ne $Expected) {
+        $Tmp = Join-Path `
+            ([IO.Path]::GetTempPath()) `
+            ("codex-agent-browser-" + [guid]::NewGuid().ToString("N"))
+
+        New-Item -ItemType Directory -Force $Tmp | Out-Null
+
+        try {
+            $Download = Join-Path $Tmp $Asset
+            $Url = "https://github.com/vercel-labs/agent-browser/releases/download/v$AgentBrowserVersion/$Asset"
+
+            Invoke-WebRequest $Url -OutFile $Download
+
+            $DownloadedHash = (
+                Get-FileHash $Download -Algorithm SHA256
+            ).Hash.ToLowerInvariant()
+
+            if ($DownloadedHash -ne $Expected) {
+                throw "SHA-256 inválido do agent-browser."
+            }
+
+            Copy-Item $Download $Target -Force
+        }
+        finally {
+            if (Test-Path $Tmp) {
+                Remove-Item $Tmp -Recurse -Force
+            }
+        }
+    }
+
+    $FinalHash = (
+        Get-FileHash $Target -Algorithm SHA256
+    ).Hash.ToLowerInvariant()
+
+    if ($FinalHash -ne $Expected) {
+        throw "Verificação final do agent-browser falhou."
+    }
+
+    Write-Ok "agent-browser@$AgentBrowserVersion SHA-256 validado"
 }
 
 
@@ -282,6 +361,8 @@ Write-Ok "PATH"
 Write-Step "uv $UvVersion"
 
 $script:UvExe = Join-Path $BinRoot "uv.exe"
+$UvXExe = Join-Path $BinRoot "uvx.exe"
+$UvExpected = $Versions["UV_SHA256_WINDOWS_X64"]
 $CurrentUv = $null
 
 if (Test-Path $UvExe) {
@@ -292,22 +373,61 @@ if (Test-Path $UvExe) {
     }
 }
 
-if ($CurrentUv -ne $UvVersion) {
-    $OldInstall = $env:UV_INSTALL_DIR
-    $OldModify  = $env:UV_NO_MODIFY_PATH
+$CurrentUvx = $null
 
-    $env:UV_INSTALL_DIR = $BinRoot
-    $env:UV_NO_MODIFY_PATH = "1"
+if (Test-Path $UvXExe) {
+    $RawUvx = & $UvXExe --version
+
+    if ($RawUvx -match '^(?:uv|uvx)\s+([0-9.]+)') {
+        $CurrentUvx = $Matches[1]
+    }
+}
+
+if ($CurrentUv -ne $UvVersion -or $CurrentUvx -ne $UvVersion) {
+    $Tmp = Join-Path `
+        ([IO.Path]::GetTempPath()) `
+        ("codex-uv-" + [guid]::NewGuid().ToString("N"))
+
+    New-Item -ItemType Directory -Force $Tmp | Out-Null
 
     try {
-        $Installer = Invoke-RestMethod `
-            "https://astral.sh/uv/$UvVersion/install.ps1"
+        $Asset = "uv-x86_64-pc-windows-msvc.zip"
+        $Base = "https://github.com/astral-sh/uv/releases/download/$UvVersion"
 
-        Invoke-Expression $Installer
+        $Archive = Join-Path $Tmp $Asset
+        $Extract = Join-Path $Tmp "extract"
+
+        Invoke-WebRequest "$Base/$Asset" -OutFile $Archive
+
+        $Actual = (
+            Get-FileHash $Archive -Algorithm SHA256
+        ).Hash.ToLowerInvariant()
+
+        if ($Actual -ne $UvExpected) {
+            throw "SHA-256 do uv inválido: $Asset"
+        }
+
+        Expand-Archive $Archive -DestinationPath $Extract
+
+        $FoundUv = Get-ChildItem `
+            $Extract -Recurse -File -Filter "uv.exe" |
+            Select-Object -First 1
+
+        $FoundUvx = Get-ChildItem `
+            $Extract -Recurse -File -Filter "uvx.exe" |
+            Select-Object -First 1
+
+        if (-not $FoundUv -or -not $FoundUvx) {
+            throw "Binários uv/uvx ausentes no release."
+        }
+
+        Copy-Item $FoundUv.FullName $UvExe -Force
+        Copy-Item $FoundUvx.FullName $UvXExe -Force
     }
     finally {
-        $env:UV_INSTALL_DIR = $OldInstall
-        $env:UV_NO_MODIFY_PATH = $OldModify
+        if (Test-Path $Tmp) {
+            Remove-Item $Tmp -Recurse -Force
+        }
     }
 }
 
@@ -327,7 +447,7 @@ Ensure-NpmPackage "@fission-ai/openspec"  $OpenSpecVersion
 Ensure-NpmPackage "@lzehrung/codegraph"   $CodeGraphVersion
 Ensure-NpmPackage "ctx7"                  $Ctx7Version
 Ensure-NpmPackage "repomix"               $RepomixVersion
-Ensure-NpmPackage "agent-browser"         $AgentBrowserVersion
+Ensure-AgentBrowser
 Ensure-NpmPackage "@playwright/cli"       $PlaywrightVersion
 Ensure-NpmPackage "chrome-devtools-mcp"   $ChromeVersion
 Ensure-NpmPackage "@bytebase/dbhub"       $DbhubVersion
@@ -530,6 +650,12 @@ if (-not (Test-Path $OdRoot)) {
     if ($LASTEXITCODE -ne 0) {
         throw "Falha clonando OpenDesign."
     }
+}
+
+$OdHead = & git -C $OdRoot rev-parse HEAD 2>$null
+
+if ($LASTEXITCODE -ne 0 -or "$OdHead".Trim() -ne $OpenDesignCommit) {
+    throw "OpenDesign não corresponde ao commit fixado."
 }
 
 if (-not (Test-Path $OdCli)) {

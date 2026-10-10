@@ -123,24 +123,70 @@ ok "$("$NODE" --version)"
 
 log "uv $UV_VERSION"
 
-CURRENT_UV="$(uv --version 2>/dev/null | awk '{print $2}' || true)"
-
-if [ "$CURRENT_UV" != "$UV_VERSION" ]; then
-  TMP="$(mktemp -d)"
-
-  curl -fsSL \
-    "https://astral.sh/uv/$UV_VERSION/install.sh" \
-    -o "$TMP/install-uv.sh"
-
-  env \
-    UV_INSTALL_DIR="$BIN" \
-    UV_NO_MODIFY_PATH=1 \
-    sh "$TMP/install-uv.sh"
-
-  rm -rf "$TMP"
-fi
-
 UV="$BIN/uv"
+
+case "$ARCH" in
+  x86_64)
+    UV_TARGET="x86_64-apple-darwin"
+    UV_EXPECTED="$UV_SHA256_MACOS_X64"
+    ;;
+  aarch64)
+    UV_TARGET="aarch64-apple-darwin"
+    UV_EXPECTED="$UV_SHA256_MACOS_ARM64"
+    ;;
+  *)
+    echo "Arquitetura uv não suportada: $ARCH" >&2
+    exit 3
+    ;;
+esac
+
+CURRENT_UV="$(
+  "$UV" --version 2>/dev/null |
+    awk '{print $2}' || true
+)"
+
+CURRENT_UVX="$(
+  "$BIN/uvx" --version 2>/dev/null |
+    awk '{print $2}' || true
+)"
+
+if [ "$CURRENT_UV" != "$UV_VERSION" ] ||
+   [ "$CURRENT_UVX" != "$UV_VERSION" ]; then
+  (
+    set -e
+    TMP="$(mktemp -d)"
+    trap 'rm -rf "$TMP"' EXIT
+
+    UV_ASSET="uv-$UV_TARGET.tar.gz"
+    UV_BASE="https://github.com/astral-sh/uv/releases/download/$UV_VERSION"
+
+    curl -fsSL "$UV_BASE/$UV_ASSET" -o "$TMP/$UV_ASSET"
+
+    ACTUAL="$(
+      shasum -a 256 "$TMP/$UV_ASSET" |
+        awk '{print $1}'
+    )"
+
+    if [ "$ACTUAL" != "$UV_EXPECTED" ]; then
+      echo "ERRO: SHA-256 do uv inválido: $UV_ASSET" >&2
+      exit 3
+    fi
+
+    mkdir -p "$TMP/extract"
+    tar -xzf "$TMP/$UV_ASSET" -C "$TMP/extract"
+
+    UV_RELEASE="$TMP/extract/uv-$UV_TARGET"
+
+    [ -f "$UV_RELEASE/uv" ] &&
+    [ -f "$UV_RELEASE/uvx" ] || {
+      echo "ERRO: binários uv/uvx ausentes no release." >&2
+      exit 3
+    }
+
+    install -m 755 "$UV_RELEASE/uv" "$BIN/uv"
+    install -m 755 "$UV_RELEASE/uvx" "$BIN/uvx"
+  )
+fi
 
 ok "$("$UV" --version)"
 
@@ -152,7 +198,22 @@ ensure_npm "@fission-ai/openspec" "$OPENSPEC_VERSION"
 ensure_npm "@lzehrung/codegraph" "$CODEGRAPH_VERSION"
 ensure_npm "ctx7" "$CTX7_VERSION"
 ensure_npm "repomix" "$REPOMIX_VERSION"
-ensure_npm "agent-browser" "$AGENT_BROWSER_VERSION"
+case "$ARCH" in
+  x86_64)
+    AB_ARCH="x64"
+    AB_SHA256="$AGENT_BROWSER_SHA256_MACOS_X64"
+    ;;
+  aarch64)
+    AB_ARCH="arm64"
+    AB_SHA256="$AGENT_BROWSER_SHA256_MACOS_ARM64"
+    ;;
+  *)
+    echo "Arquitetura agent-browser não suportada: $ARCH" >&2
+    exit 3
+    ;;
+esac
+
+ensure_agent_browser "darwin" "$AB_ARCH" "$AB_SHA256"
 ensure_npm "@playwright/cli" "$PLAYWRIGHT_CLI_VERSION"
 ensure_npm "chrome-devtools-mcp" "$CHROME_DEVTOOLS_VERSION"
 ensure_npm "@bytebase/dbhub" "$DBHUB_VERSION"
@@ -317,6 +378,15 @@ if [ ! -d "$OD_ROOT" ]; then
     --branch "$OPENDESIGN_TAG" \
     https://github.com/nexu-io/open-design.git \
     "$OD_ROOT"
+fi
+
+OD_HEAD="$(
+  git -C "$OD_ROOT" rev-parse --verify HEAD 2>/dev/null || true
+)"
+
+if [ "$OD_HEAD" != "$OPENDESIGN_COMMIT" ]; then
+  echo "ERRO: OpenDesign não corresponde ao commit fixado." >&2
+  exit 3
 fi
 
 if [ ! -f "$OD_CLI" ]; then

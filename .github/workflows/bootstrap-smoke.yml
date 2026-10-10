@@ -65,6 +65,11 @@ jobs:
         shell: bash
         run: ./tests/beads-security-smoke.sh
 
+      - name: Agent-browser integrity smoke (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: ./tests/agent-browser-integrity-smoke.sh
+
       - name: Bootstrap machine (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -117,6 +122,43 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: '& ".\tests\beads-security-smoke.ps1"'
+
+      - name: Agent-browser integrity smoke (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $root = Join-Path $HOME ".local\npm\node_modules\agent-browser"
+          $binary = Join-Path $root "bin\agent-browser-win32-x64.exe"
+          $wrapper = Join-Path $root "bin\agent-browser.js"
+          $node = Join-Path $HOME ".local\opt\node24\node.exe"
+
+          $line = Get-Content "manifests/tools.env" |
+            Where-Object {
+              $_ -match '^AGENT_BROWSER_SHA256_WINDOWS_X64='
+            } |
+            Select-Object -First 1
+
+          if (-not $line) { throw "Hash Windows não definido." }
+
+          $expected = ($line -split "=", 2)[1].Trim('"')
+
+          $actual = (
+            Get-FileHash $binary -Algorithm SHA256
+          ).Hash.ToLowerInvariant()
+
+          if ($actual -ne $expected) {
+            throw "Hash do agent-browser Windows divergente."
+          }
+
+          & $node $wrapper --version
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Wrapper Windows do agent-browser falhou."
+          }
+
+          Write-Host "Agent-browser Windows: integridade e wrapper OK"
 
       - name: Neutral project smoke (Windows)
         if: runner.os == 'Windows'

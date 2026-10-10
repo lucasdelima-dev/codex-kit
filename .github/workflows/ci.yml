@@ -41,6 +41,7 @@ jobs:
             bin/codex-doctor \
             tests/dbhub-security-smoke.sh \
             tests/beads-security-smoke.sh \
+            tests/agent-browser-integrity-smoke.sh \
             platform/linux/machine.sh \
             platform/macos/machine.sh \
             wrappers/codex-code \
