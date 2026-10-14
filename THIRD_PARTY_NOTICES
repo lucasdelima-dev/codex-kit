@@ -112,7 +112,7 @@ They remain subject to their own upstream licenses.
 
   Node.js                         24.21.0
   uv                              0.12.21
-  OpenAI Codex CLI                0.159.3
+  OpenAI Codex CLI                0.160.0
   RTK                             0.49.0
   OpenSpec                        1.13.0
   CodeGraph                       2.3.27
@@ -128,7 +128,7 @@ They remain subject to their own upstream licenses.
   DBHub                           1.4.0
   UI/UX Pro Max CLI               2.15.0
   OpenDesign                      0.24.1
-  pnpm                            10.33.2
+  pnpm                            10.34.7
   Superpowers                     6.4.2
 
 
