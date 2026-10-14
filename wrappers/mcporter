@@ -5,8 +5,18 @@ MCPORTER_ROOT="$HOME/.local/share/mcporter"
 
 export PATH="$NODE24_ROOT/bin:$MCPORTER_ROOT/node_modules/.bin:$PATH"
 
+if [[ -z "${CODEX_PROJECT_ROOT:-}" ]]; then
+  if ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    export CODEX_PROJECT_ROOT="$ROOT"
+  fi
+fi
+
 if [[ -n "${CODEX_PROJECT_ROOT:-}" ]]; then
-  cd "$CODEX_PROJECT_ROOT"
+  if ! cd "$CODEX_PROJECT_ROOT"; then
+    echo "ERRO: CODEX_PROJECT_ROOT inacessível" >&2
+    exit 2
+  fi
+  export CODEX_PROJECT_ROOT="$(pwd -P)"
 fi
 
 exec "$MCPORTER_ROOT/node_modules/.bin/mcporter" "$@"
