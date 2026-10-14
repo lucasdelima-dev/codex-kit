@@ -101,6 +101,15 @@ with tempfile.TemporaryDirectory(prefix="codex-beads-native-") as directory:
     )
     curl.chmod(0o755)
 
+    # Simula o OpenDesign sombreando o utilitário Unix.
+    fake_od = fake_bin / "od"
+    fake_od.write_text(
+        "#!/bin/sh\n"
+        "echo 'ERRO: wrapper OpenDesign acionado' >&2\n"
+        "exit 88\n"
+    )
+    fake_od.chmod(0o755)
+
     snippet = root / "install-beads.sh"
     snippet.write_text(shell)
     snippet.chmod(0o755)
@@ -182,6 +191,21 @@ with tempfile.TemporaryDirectory(prefix="codex-beads-native-") as directory:
 
     print("✅ Wrapper npm substituído pelo executável nativo")
     print("✅ Arquivos do pacote npm preservados")
+
+
+    print("\n=== 1B. Idempotência com OpenDesign no PATH ===")
+
+    result, curl_log = execute(prefix, digest, "idempotencia")
+
+    assert result.returncode == 0, (
+        result.stdout + "\n" + result.stderr
+    )
+    assert target.is_file() and not target.is_symlink()
+    assert not curl_log.exists()
+
+    print("✅ Executável nativo reconhecido")
+    print("✅ Wrapper od não interferiu")
+    print("✅ Nenhum download desnecessário")
 
     print("\n=== 2. Rejeição de checksum inválido ===")
 

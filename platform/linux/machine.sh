@@ -298,7 +298,7 @@ BEADS_NATIVE=0
 
 if [ -f "$BIN/bd" ] && [ ! -L "$BIN/bd" ]; then
   BD_MAGIC="$(
-    od -An -tx1 -N4 "$BIN/bd" 2>/dev/null |
+    /usr/bin/od -An -tx1 -N4 "$BIN/bd" 2>/dev/null |
       tr -d '[:space:]'
   )"
 
