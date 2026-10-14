@@ -1,44 +1,78 @@
-# Security Policy
+# Política de Segurança
 
-## Reporting a vulnerability
+## Comunicação de vulnerabilidades
 
-Do not publish sensitive vulnerability details in a public issue.
+Não publique detalhes sensíveis de vulnerabilidades em
+issues públicas.
 
-Prefer GitHub Private Vulnerability Reporting or a private Security Advisory
-when those features are available for this repository.
+Prefira o recurso de comunicação privada de vulnerabilidades
+do GitHub ou um aviso privado de segurança, quando disponíveis
+para este repositório.
 
-Include, when applicable:
+Ao comunicar uma vulnerabilidade, informe, quando aplicável:
 
-- affected component and version;
-- reproduction steps;
-- observed and expected behavior;
-- potential impact;
-- suggested mitigation.
+- Componente e versão afetados.
+- Etapas necessárias para reproduzir o problema.
+- Comportamento observado e comportamento esperado.
+- Impacto potencial.
+- Possíveis medidas de correção ou mitigação.
 
-Never include real credentials, tokens, private project data or production data.
+Nunca inclua credenciais reais, tokens, informações privadas
+de projetos ou dados de produção.
 
-## Scope
+## Escopo
 
-Security reports may include issues involving bootstrap scripts, wrappers,
-privilege boundaries, unsafe defaults, project isolation, dependency handling,
-credential exposure or filesystem behavior.
+São considerados relevantes os problemas de segurança
+relacionados a:
 
-Vulnerabilities in third-party tools should also be reported to their
-respective upstream maintainers when appropriate.
+- Scripts de instalação e configuração.
+- Wrappers e execução de ferramentas.
+- Limites de privilégios e permissões.
+- Configurações padrão inseguras.
+- Isolamento entre projetos.
+- Tratamento e instalação de dependências.
+- Exposição de credenciais.
+- Operações no sistema de arquivos.
 
-## Database access and DBHub
+Vulnerabilidades identificadas em ferramentas de terceiros
+também devem ser comunicadas aos respectivos mantenedores
+quando apropriado.
 
-DBHub is enabled only per project and uses stdio transport.
+## Acesso a bancos de dados e DBHub
 
-Database credentials must never be committed. Use a dedicated database
-account with the minimum permissions required, preferably SELECT-only.
-Do not use administrator, root, superuser or privileged production
-credentials with an AI agent.
+O DBHub é habilitado somente por projeto e utiliza
+transporte `stdio`.
 
-DBHub read-only mode, query timeout and row limits are defense-in-depth
-controls. Database permissions remain the authoritative access boundary.
+Credenciais de banco de dados nunca devem ser incluídas
+em commits.
 
-## Supported versions
+Utilize uma conta dedicada, com apenas as permissões
+necessárias, preferencialmente limitada a consultas.
 
-Until versioned releases are published, security fixes apply to the latest
-version available on the default branch.
+Não utilize contas administrativas, root, superusuário
+ou credenciais privilegiadas de produção com agentes de IA.
+
+O modo somente leitura, os limites de resultados e os
+tempos máximos de consulta são medidas adicionais
+de proteção.
+
+As permissões configuradas diretamente no banco de dados
+continuam sendo a principal barreira de autorização.
+
+## Riscos conhecidos em dependências de terceiros
+
+Consulte o
+[Registro de Riscos de Dependências](docs/security/dependency-risk-register.md)
+para verificar:
+
+- Vulnerabilidades conhecidas.
+- Componentes e versões afetadas.
+- Evidências de exposição.
+- Medidas preventivas.
+- Critérios para resolução.
+
+## Versões com suporte
+
+Até a publicação das versões oficiais, as correções de
+segurança são aplicadas à versão mais recente disponível
+na branch principal (`main`).
