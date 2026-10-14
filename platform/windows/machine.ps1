@@ -549,9 +549,36 @@ else {
 Write-Step "Beads $BeadsVersion"
 
 $BdExe = Join-Path $BinRoot "bd.exe"
+$BdItem = Get-Item -LiteralPath $BdExe -Force -ErrorAction SilentlyContinue
+$BdIsNative = $false
+
+if ($BdItem) {
+    if ($BdItem.LinkType) {
+        throw "bd.exe é um link; arquivo preservado."
+    }
+
+    $Stream = [IO.File]::OpenRead($BdExe)
+    try {
+        $Header = [byte[]]::new(2)
+        $Count = $Stream.Read($Header, 0, 2)
+        $BdIsNative = (
+            $Count -eq 2 -and
+            $Header[0] -eq 0x4D -and
+            $Header[1] -eq 0x5A
+        )
+    }
+    finally {
+        $Stream.Dispose()
+    }
+
+    if (-not $BdIsNative) {
+        throw "bd.exe não é um executável PE; arquivo preservado."
+    }
+}
+
 $BdCurrent = $null
 
-if (Test-Path $BdExe) {
+if ($BdIsNative) {
     $RawBd = & $BdExe --version 2>$null
 
     if ($RawBd -match '([0-9]+\.[0-9]+\.[0-9]+)') {
@@ -591,8 +618,11 @@ if ($BdCurrent -ne $BeadsVersion) {
     $Expected = ($ChecksumLine -split '\s+')[0].ToLowerInvariant()
     $Actual = (Get-FileHash $Archive -Algorithm SHA256).Hash.ToLowerInvariant()
 
-    if ($Expected -ne $Actual) {
-        throw "Checksum do Beads inválido."
+    if (
+        $Expected -ne $Actual -or
+        $Actual -ne $Versions["BEADS_SHA256_WINDOWS_AMD64"]
+    ) {
+        throw "Checksum do Beads inválido ou diferente do hash fixado."
     }
 
     Expand-Archive $Archive -DestinationPath $Extract

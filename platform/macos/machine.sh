@@ -289,9 +289,11 @@ log "Beads $BEADS_VERSION"
 case "$ARCH" in
   x86_64)
     BEADS_ARCH="amd64"
+    BEADS_PINNED_SHA256="$BEADS_SHA256_MACOS_AMD64"
     ;;
   aarch64)
     BEADS_ARCH="arm64"
+    BEADS_PINNED_SHA256="$BEADS_SHA256_MACOS_ARM64"
     ;;
   *)
     echo "Arquitetura Beads não suportada: $ARCH" >&2
@@ -299,13 +301,44 @@ case "$ARCH" in
     ;;
 esac
 
+# Não aceitar wrapper npm ou script que apenas informe a versão.
+BEADS_NATIVE=0
+
+if [ -f "$BIN/bd" ] && [ ! -L "$BIN/bd" ]; then
+  BD_MAGIC="$(
+    od -An -tx1 -N4 "$BIN/bd" 2>/dev/null |
+      tr -d '[:space:]'
+  )"
+
+  case "$OS:$BD_MAGIC" in
+    Linux:7f454c46|Darwin:cffaedfe|Darwin:feedfacf|Darwin:cafebabe|Darwin:bebafeca|Darwin:cefaedfe|Darwin:feedface)
+      BEADS_NATIVE=1
+      ;;
+  esac
+fi
+
 BEADS_CURRENT="$(
   "$BIN/bd" --version 2>/dev/null |
     grep -oE '[0-9]+\.[0-9]+\.[0-9]+' |
     head -1 || true
 )"
 
-if [ "$BEADS_CURRENT" != "$BEADS_VERSION" ]; then
+if [ "$BEADS_CURRENT" != "$BEADS_VERSION" ] ||
+   [ "$BEADS_NATIVE" -ne 1 ]; then
+
+  # Somente o symlink conhecido do pacote npm pode ser substituído.
+  if [ -L "$BIN/bd" ] &&
+     [ ! "$BIN/bd" -ef "$PREFIX/lib/node_modules/@beads/bd/bin/bd.js" ]; then
+    echo "ERRO: symlink bd desconhecido; preservado." >&2
+    exit 3
+  fi
+
+  if [ -e "$BIN/bd" ] &&
+     [ "$BEADS_NATIVE" -ne 1 ] &&
+     [ ! -L "$BIN/bd" ]; then
+    echo "ERRO: arquivo bd não nativo; preservado." >&2
+    exit 3
+  fi
   TMP="$(mktemp -d)"
   EXTRACT="$TMP/extract"
   ASSET="beads_${BEADS_VERSION}_darwin_${BEADS_ARCH}.tar.gz"
@@ -329,8 +362,9 @@ if [ "$BEADS_CURRENT" != "$BEADS_VERSION" ]; then
 
   ACTUAL="$(shasum -a 256 "$TMP/$ASSET" | awk '{print $1}')"
 
-  [ "$EXPECTED" = "$ACTUAL" ] || {
-    echo "Checksum do Beads inválido." >&2
+  [ "$EXPECTED" = "$ACTUAL" ] &&
+  [ "$ACTUAL" = "$BEADS_PINNED_SHA256" ] || {
+    echo "Checksum do Beads inválido ou diferente do hash fixado." >&2
     exit 3
   }
 
@@ -343,8 +377,10 @@ if [ "$BEADS_CURRENT" != "$BEADS_VERSION" ]; then
     exit 3
   }
 
-  rm -f "$BIN/bd"
-  install -m 755 "$BD_BIN" "$BIN/bd"
+  # Preparar no mesmo filesystem e substituir atomicamente.
+  STAGED_BD="$(mktemp "$BIN/.bd-staged.XXXXXX")"
+  install -m 755 "$BD_BIN" "$STAGED_BD"
+  mv -f "$STAGED_BD" "$BIN/bd"
   rm -rf "$TMP"
 else
   ok "Beads $BEADS_VERSION"

@@ -74,6 +74,16 @@ jobs:
           }
           if ($failed) { throw "PowerShell syntax validation failed" }
 
+      - name: Beads native regression (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: python3 tests/beads-native-install-smoke.py
+
+      - name: Beads native regression (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tests/beads-native-install-smoke.ps1
+
       - name: Validate Python, JSON and TOML
         shell: bash
         run: |
