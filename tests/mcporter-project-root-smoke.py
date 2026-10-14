@@ -25,7 +25,7 @@ def check(condition, message):
 with tempfile.TemporaryDirectory(
     prefix="codex-kit-mcporter-"
 ) as temporary:
-    base = Path(temporary)
+    base = Path(temporary).resolve()
     home = base / "home"
     project = base / "projeto com espacos"
     nested = project / "src" / "modulo"
