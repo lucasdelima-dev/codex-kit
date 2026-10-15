@@ -12,6 +12,7 @@ $Versions = Read-EnvManifest (Join-Path $Kit "manifests\tools.env")
 
 $NodeVersion          = $Versions["NODE24_VERSION"]
 $UvVersion            = $Versions["UV_VERSION"]
+$UvToolPythonVersion  = $Versions["UV_TOOL_PYTHON_VERSION"]
 $CodexVersion         = $Versions["CODEX_VERSION"]
 $RtkVersion           = $Versions["RTK_VERSION"]
 $OpenSpecVersion      = $Versions["OPENSPEC_VERSION"]
@@ -122,7 +123,7 @@ function Ensure-UvTool {
 
     Write-Step "Instalando $Package==$Version"
 
-    & $script:UvExe tool install --force "$Package==$Version"
+    & $script:UvExe tool install --force --python $UvToolPythonVersion "$Package==$Version"
 
     if ($LASTEXITCODE -ne 0) {
         throw "Falha instalando $Package==$Version"

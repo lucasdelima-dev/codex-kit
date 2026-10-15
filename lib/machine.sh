@@ -55,7 +55,7 @@ ensure_uv_tool() {
   fi
 
   log "Instalando $pkg==$wanted"
-  "$UV" tool install --force "$pkg==$wanted"
+  "$UV" tool install --force --python "$UV_TOOL_PYTHON_VERSION" "$pkg==$wanted"
 }
 
 

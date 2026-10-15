@@ -30,7 +30,7 @@ if os.name == "nt":
     npm_root = HOME / ".local/npm"
 else:
     node = HOME / ".local/opt/node24/bin/node"
-    npm_root = HOME / ".local"
+    npm_root = HOME / ".local/lib"
 
 cli = (
     npm_root
@@ -92,7 +92,7 @@ with tempfile.TemporaryDirectory(
         f"esperada {expected_version}"
     )
 
-    print(f"✅ CodeGraph {version}", flush=True)
+    print(f"[OK] CodeGraph {version}", flush=True)
 
     print("\n=== RUNTIME NATIVO ===", flush=True)
 
@@ -106,7 +106,7 @@ with tempfile.TemporaryDirectory(
         "Origem do módulo nativo não identificada"
     )
 
-    print("✅ Módulo nativo carregado", flush=True)
+    print("[OK] Módulo nativo carregado", flush=True)
 
     print("\n=== INICIAR MCP STDIO ===", flush=True)
 
@@ -221,7 +221,7 @@ with tempfile.TemporaryDirectory(
             assert info.get("name") == "codegraph"
             assert info.get("version") == expected_version
 
-            print("✅ Handshake MCP aprovado", flush=True)
+            print("[OK] Handshake MCP aprovado", flush=True)
 
             send({
                 "jsonrpc": "2.0",
@@ -249,7 +249,7 @@ with tempfile.TemporaryDirectory(
             assert {"orient", "search"} <= names
 
             print(
-                f"✅ {len(names)} ferramentas disponíveis",
+                f"[OK] {len(names)} ferramentas disponíveis",
                 flush=True,
             )
 
@@ -302,9 +302,9 @@ with tempfile.TemporaryDirectory(
                 "Busca MCP não confirmou o símbolo nativo"
             )
 
-            print("✅ Símbolo somar localizado", flush=True)
-            print("✅ Backend semântico nativo confirmado")
-            print("✅ Handshake MCP completo aprovado")
+            print("[OK] Símbolo somar localizado", flush=True)
+            print("[OK] Backend semântico nativo confirmado")
+            print("[OK] Handshake MCP completo aprovado")
 
         except BaseException:
             stderr.flush()
@@ -335,6 +335,6 @@ with tempfile.TemporaryDirectory(
 
             process.stdout.close()
 
-            print("✅ Servidor MCP encerrado", flush=True)
+            print("[OK] Servidor MCP encerrado", flush=True)
 
-print("\n✅ CodeGraph native MCP smoke aprovado")
+print("\n[OK] CodeGraph native MCP smoke aprovado")
