@@ -1,6 +1,7 @@
 # Registro de Riscos de Dependências de Terceiros
 
-- **Data da avaliação:** 14/10/2026
+- **Data da avaliação inicial:** 14/10/2026
+- **Reavaliação preliminar:** 15/10/2026
 - **Commit de referência:** `e4862e5`
 - **Situação:** Riscos conhecidos em acompanhamento.
 
@@ -39,7 +40,7 @@ a possibilidade de exploração através do Codex Kit.
 ### Ferramentas afetadas
 
 - OpenSpec 1.13.0
-- Codegraph 2.3.27
+- CodeGraph 2.3.27 (configuração inicial; substituído no manifesto candidato)
 - Repomix 1.18.1
 
 ### Evidências identificadas
@@ -47,8 +48,10 @@ a possibilidade de exploração através do Codex Kit.
 O OpenSpec utiliza `fast-glob` na resolução de caminhos
 de artefatos.
 
-O Codegraph utiliza `fast-glob` na descoberta de arquivos
-e espaços de trabalho.
+O CodeGraph 2.3.27 utilizava `fast-glob` na descoberta
+de arquivos e espaços de trabalho. Na versão 3.0.0,
+o projeto declara a substituição por `tinyglobby`,
+eliminando essa cadeia de dependências de produção.
 
 O Repomix utiliza `globby` e aceita padrões de inclusão e
 exclusão por meio de ferramentas MCP.
@@ -72,7 +75,7 @@ A exploração completa através da integração do Codex Kit
 não foi demonstrada.
 
 A origem e a validação dos padrões utilizados pelo OpenSpec
-e pelo Codegraph ainda podem exigir investigação adicional.
+ainda podem exigir investigação adicional.
 
 ### Medidas preventivas
 
@@ -167,7 +170,69 @@ Os testes CI e Bootstrap Smoke passaram em:
 
 A atualização também foi validada no ambiente local.
 
-## 6. Critérios de segurança para a v1.0.0
+## 6. Reavaliação preliminar — 15/10/2026
+
+A comparação utilizou resoluções temporárias de dependências,
+sem instalação de executáveis e sem alteração do ambiente global.
+
+| Cenário | Altas | Moderadas | Total |
+|---|---:|---:|---:|
+| Versões inicialmente fixadas | 8 | 4 | 12 |
+| OpenSpec 1.14.1 | 8 | 4 | 12 |
+| CodeGraph 3.0.0 | 6 | 4 | 10 |
+| DBHub 1.5.0 | 8 | 4 | 12 |
+| Três atualizações combinadas | 6 | 4 | 10 |
+
+Nenhum cenário apresentou vulnerabilidades críticas.
+
+### Atualização candidata: CodeGraph 3.0.0
+
+A atualização isolada do CodeGraph reduziu de 12 para 10
+o número de pacotes sinalizados pela auditoria npm.
+
+A remoção da cadeia vulnerável no CodeGraph não elimina
+a vulnerabilidade de `braces` das demais ferramentas.
+
+Os avisos de `braces` e `sprintf-js` continuam presentes
+na resolução de dependências candidata.
+
+Não foram identificados benefícios de segurança adicionais
+na comparação isolada de OpenSpec 1.14.1 e DBHub 1.5.0.
+A versão fixada do pnpm permanece em 10.34.7.
+
+### Evidências funcionais
+
+No Ubuntu Linux x64, uma instalação temporária do
+CodeGraph 3.0.0 passou nas seguintes verificações:
+
+- Inicialização do runtime nativo.
+- Análise semântica de uma fixture TypeScript.
+- Handshake MCP usando protocolo 2025-06-18.
+- Descoberta de ferramentas pelo método `tools/list`.
+- Busca semântica via `tools/call`.
+
+O teste de regressão permanente foi preparado para execução
+no Bootstrap Smoke de Ubuntu, macOS e Windows.
+
+Esses testes multiplataforma ainda não foram executados
+para a atualização candidata.
+
+### Riscos residuais e decisão
+
+Os riscos RISCO-001 e RISCO-002 permanecem abertos.
+
+A redução numérica de alertas não equivale à eliminação
+das vulnerabilidades conhecidas nem comprova ausência
+de caminhos exploráveis.
+
+A adoção definitiva do CodeGraph 3.0.0 depende da aprovação
+dos testes multiplataforma e da revisão do Pull Request.
+
+Antes da publicação da v1.0.0, deve ser reexecutada
+a auditoria com o manifesto final e registrada qualquer
+mudança nos riscos residuais.
+
+## 7. Critérios de segurança para a v1.0.0
 
 Antes da publicação da primeira versão estável:
 
@@ -178,7 +243,7 @@ Antes da publicação da primeira versão estável:
 5. Confirmar a aprovação dos testes multiplataforma.
 6. Não suprimir alertas sem justificativa técnica documentada.
 
-## 7. Acompanhamento
+## 8. Acompanhamento
 
 Os riscos permanecerão documentados até que existam evidências
 suficientes para considerá-los corrigidos ou não aplicáveis.

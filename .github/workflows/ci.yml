@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
@@ -92,7 +94,7 @@ jobs:
       - name: Validate Python, JSON and TOML
         shell: bash
         run: |
-          python -m py_compile lib/merge-project-mcporter.py
+          python -m py_compile lib/merge-project-mcporter.py tests/codegraph-native-mcp-smoke.py
           python -c 'import json; json.load(open("templates/mcporter/global.json")); json.load(open("templates/mcporter/project-dbhub.json"))'
           python -c 'import glob,tomllib; [tomllib.load(open(p,"rb")) for p in glob.glob("templates/profiles/*/config.toml")]'
 
@@ -109,6 +111,7 @@ jobs:
           test ! -d skills/ui-ux-pro-max
           grep -q 'UI_UX_PRO_MAX_VERSION="2.15.0"' manifests/tools.env
           grep -q 'CODEX_VERSION="0.160.0"' manifests/tools.env
+          grep -q 'CODEGRAPH_VERSION="3.0.0"' manifests/tools.env
           test "$(grep -R 'model = "gpt-6.1-sol"' templates/profiles/*/config.toml | wc -l)" -eq 8
           test "$(grep -R 'model_reasoning_effort = "medium"' templates/profiles/*/config.toml | wc -l)" -eq 8
 
