@@ -2,6 +2,7 @@
 
 - **Data da avaliação inicial:** 14/10/2026
 - **Reavaliação preliminar:** 15/10/2026
+- **Revalidação para a release:** 15/10/2026
 - **Commit de referência:** `e4862e5`
 - **Situação:** Riscos conhecidos em acompanhamento.
 
@@ -24,8 +25,8 @@ A avaliação utilizou:
 - Consulta aos avisos de segurança publicados pelos mantenedores.
 - Resultados dos testes automatizados em Ubuntu, macOS e Windows.
 
-A auditoria identificou 12 pacotes sinalizados, associados a
-duas vulnerabilidades distintas.
+A auditoria inicial identificou 12 pacotes sinalizados,
+associados a duas vulnerabilidades distintas.
 
 A presença de uma dependência vulnerável não comprova, isoladamente,
 a possibilidade de exploração através do Codex Kit.
@@ -214,8 +215,8 @@ CodeGraph 3.0.0 passou nas seguintes verificações:
 O teste de regressão permanente foi preparado para execução
 no Bootstrap Smoke de Ubuntu, macOS e Windows.
 
-Esses testes multiplataforma ainda não foram executados
-para a atualização candidata.
+Na data da reavaliação preliminar, esses testes
+multiplataforma ainda não haviam sido executados.
 
 ### Riscos residuais e decisão
 
@@ -225,14 +226,98 @@ A redução numérica de alertas não equivale à eliminação
 das vulnerabilidades conhecidas nem comprova ausência
 de caminhos exploráveis.
 
-A adoção definitiva do CodeGraph 3.0.0 depende da aprovação
-dos testes multiplataforma e da revisão do Pull Request.
+Na avaliação preliminar, a adoção do CodeGraph 3.0.0
+estava condicionada à aprovação dos testes multiplataforma
+e à revisão do Pull Request.
 
 Antes da publicação da v1.0.0, deve ser reexecutada
 a auditoria com o manifesto final e registrada qualquer
 mudança nos riscos residuais.
 
-## 7. Critérios de segurança para a v1.0.0
+## 7. Revalidação para a release v1.0.0 — 15/10/2026
+
+### Escopo da auditoria final
+
+A auditoria utilizou o manifesto integrado à `main`,
+com 12 pacotes npm de versões fixadas, incluindo
+`@lzehrung/codegraph@3.0.0`.
+
+A resolução ocorreu em diretório temporário, utilizando
+`npm install --package-lock-only --ignore-scripts`,
+seguido de `npm audit --json`.
+
+Não houve instalação global nem modificação do repositório.
+
+A auditoria abrange os pacotes npm selecionados do manifesto.
+Não constitui uma análise exaustiva das demais dependências,
+ferramentas ou superfícies de ataque do Codex Kit.
+
+### Resultado
+
+| Severidade | Pacotes sinalizados |
+|---|---:|
+| Crítica | 0 |
+| Alta | 6 |
+| Moderada | 4 |
+| Baixa | 0 |
+| **Total** | **10** |
+
+Os 10 pacotes sinalizados estão associados aos avisos:
+
+- `GHSA-vfj7-8cjw-p6xm` — `braces`; severidade alta.
+- `GHSA-hp3w-g68c-fv3c` — `sprintf-js`; severidade moderada.
+
+Os avisos continuam relevantes para as cadeias de dependências
+documentadas em RISCO-001 e RISCO-002.
+
+A redução de 12 para 10 representa menos pacotes sinalizados,
+não a eliminação dessas vulnerabilidades.
+
+### Evidências funcionais e multiplataforma
+
+A atualização do CodeGraph 3.0.0 foi integrada pelo
+[Pull Request #1](https://github.com/lucasdelima-dev/codex-kit/pull/1).
+
+Foram aprovadas as seguintes execuções:
+
+- [CI do PR](https://github.com/lucasdelima-dev/codex-kit/actions/runs/38774090672):
+  Ubuntu, macOS e Windows.
+- [Bootstrap Smoke](https://github.com/lucasdelima-dev/codex-kit/actions/runs/38774406067):
+  Ubuntu, macOS e Windows, incluindo o teste MCP nativo.
+- [CI pós-merge](https://github.com/lucasdelima-dev/codex-kit/actions/runs/38779614011):
+  aprovado na `main`.
+- [DBHub Windows pós-merge](https://github.com/lucasdelima-dev/codex-kit/actions/runs/38779614201):
+  aprovado na `main`.
+
+O Bootstrap Smoke confirmou a instalação, a inicialização
+do runtime nativo e a execução do teste MCP permanente nas
+três plataformas.
+
+O instalador também foi ajustado para utilizar Python 3.12
+nas ferramentas gerenciadas pelo `uv`.
+
+### Riscos residuais e decisão de publicação
+
+RISCO-001 e RISCO-002 permanecem **abertos**.
+
+As medidas preventivas descritas nas respectivas seções
+continuam aplicáveis. A aprovação de testes funcionais
+não comprova a ausência de exploração possível.
+
+A publicação da v1.0.0 pode ser considerada somente mediante
+aceitação explícita dos riscos residuais pelo responsável
+pela release, registrada na aprovação do Pull Request
+de preparação da versão.
+
+A aceitação não altera a classificação dos avisos nem
+substitui futuras atualizações de segurança.
+
+As notas de lançamento devem mencionar os dois avisos
+e referenciar este registro.
+
+---
+
+## 8. Critérios de segurança para a v1.0.0
 
 Antes da publicação da primeira versão estável:
 
@@ -243,7 +328,7 @@ Antes da publicação da primeira versão estável:
 5. Confirmar a aprovação dos testes multiplataforma.
 6. Não suprimir alertas sem justificativa técnica documentada.
 
-## 8. Acompanhamento
+## 9. Acompanhamento
 
 Os riscos permanecerão documentados até que existam evidências
 suficientes para considerá-los corrigidos ou não aplicáveis.

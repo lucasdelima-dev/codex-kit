@@ -102,8 +102,6 @@ git clone https://github.com/lucasdelima-dev/codex-kit.git "$HOME\.codex-kit"
 Set-Location "$HOME\.codex-kit"
 ```
 
-> A URL definitiva será adicionada antes da primeira release pública.
-
 ## 2. Preparar a máquina
 
 ### Linux / macOS
