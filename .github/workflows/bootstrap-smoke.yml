@@ -28,6 +28,11 @@ jobs:
         shell: bash
         run: ./bin/bootstrap-machine
 
+      - name: CodeGraph native MCP smoke (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: python3 tests/codegraph-native-mcp-smoke.py
+
       - name: Bootstrap profiles (Unix)
         if: runner.os != 'Windows'
         shell: bash
@@ -89,6 +94,11 @@ jobs:
 
           "$HOME\.local\opt\node24" |
             Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: CodeGraph native MCP smoke (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: python tests/codegraph-native-mcp-smoke.py
 
       - name: Bootstrap profiles (Windows)
         if: runner.os == 'Windows'

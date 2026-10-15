@@ -46,3 +46,28 @@ When redistributing third-party material, verify its license and update
 
 Describe what changed, why it changed, affected platforms or profiles and the
 validation performed.
+
+## Protected main branch
+
+The `main` branch is protected by an active repository ruleset.
+Changes must be submitted through a pull request from a dedicated branch.
+
+Before merging, these CI checks must pass:
+
+- `Validate (ubuntu-latest)`
+- `Validate (macos-latest)`
+- `Validate (windows-latest)`
+
+Required status checks use strict mode: the pull request must be up to
+date with `main` before merging.
+
+The current ruleset requires zero approving reviews, allowing the
+repository maintainer to merge a pull request after all required checks
+pass. This does not waive CI or other branch protection rules.
+
+Force pushes and branch deletion are prohibited. No bypass actors are
+configured.
+
+For changes affecting installation or native runtimes, run the
+`Bootstrap Smoke` workflow on Ubuntu, macOS and Windows before release.
+This workflow is dispatched separately from the required PR checks.
